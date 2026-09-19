@@ -1,0 +1,11 @@
+{
+  "name": "gen3rl-showdown-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/worker.js"
+  },
+  "devDependencies": {"typescript": "^5.8.3"}
+}
+

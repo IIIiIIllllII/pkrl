@@ -1,0 +1,16 @@
+seed: 424242
+format: gen3customgame
+device: cpu
+workers: 1
+battle_concurrency: 1
+rollout_size: 256
+max_decisions: 1600
+learning_rate: 0.0003
+ppo: {epochs: 4, minibatch: 128, gamma: 0.99, gae_lambda: 0.95, clip: 0.2, entropy: 0.01, value: 0.5, gradient_clip: 0.5}
+reward: {terminal: true, faint: 0.0, hp_delta: 0.0}
+opponent_mixture: {random: 0.35, damage: 0.65, historical: 0.0}
+team_distribution: {cartridge: 0.5, synthetic: 0.5}
+checkpoint_decisions: [500, 1000, 1500]
+evaluation_decisions: []
+evaluation_games: 10
+feature_schema: gen3-lut-v1

@@ -1,0 +1,40 @@
+{
+  "real_states": 10000,
+  "source_battles": 1246,
+  "top1_agreement": 0.9957,
+  "action_ranking_disagreements": 43,
+  "score_mae": 0.00025627818005318485,
+  "max_score_error": 0.001187455349081143,
+  "float_tie_rate": 0.0,
+  "quantized_tie_rate": 0.0009,
+  "tie_rate_change": 0.0009,
+  "disagreements_by_move_role": {
+    "protect": 27,
+    "pivot": 1,
+    "recovery": 8,
+    "damage": 4,
+    "setup": 3
+  },
+  "disagreements_by_feature_bucket": {
+    "user_hp:full": 32,
+    "target_hp:half": 5,
+    "effectiveness:neutral": 32,
+    "speed_relation:slower": 34,
+    "weather:none": 43,
+    "can_ko:no": 43,
+    "target_hp:full": 17,
+    "effectiveness:quarter": 1,
+    "speed_relation:faster": 6,
+    "target_hp:three_quarters": 10,
+    "effectiveness:half": 7,
+    "target_hp:quarter": 11,
+    "user_hp:quarter": 6,
+    "speed_relation:tie": 3,
+    "user_hp:half": 5,
+    "effectiveness:immune": 3
+  },
+  "domains": {
+    "cartridge-validation": 4458,
+    "synthetic": 5542
+  }
+}

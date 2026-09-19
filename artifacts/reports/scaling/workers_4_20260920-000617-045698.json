@@ -1,0 +1,85 @@
+{
+  "workers": 4,
+  "active_battles": 4,
+  "battles": 817,
+  "completed_battles": 817,
+  "decisions": 8008,
+  "wall_seconds": 3.270662907001679,
+  "battles_per_second": 249.79645510119843,
+  "decisions_per_second": 2448.433307772824,
+  "per_worker_battles_per_second": 62.44911377529961,
+  "per_worker_throughput": {
+    "2": {
+      "battles": 217,
+      "decisions": 1989,
+      "worker_wall_seconds": 2.780331585006934,
+      "battles_per_second": 78.04824473821127,
+      "decisions_per_second": 715.3822985451714
+    },
+    "0": {
+      "battles": 211,
+      "decisions": 2018,
+      "worker_wall_seconds": 2.756007605981722,
+      "battles_per_second": 76.56002093101603,
+      "decisions_per_second": 732.2185888094328
+    },
+    "1": {
+      "battles": 196,
+      "decisions": 1970,
+      "worker_wall_seconds": 2.766603722018772,
+      "battles_per_second": 70.84498529373052,
+      "decisions_per_second": 712.0643930033118
+    },
+    "3": {
+      "battles": 193,
+      "decisions": 2031,
+      "worker_wall_seconds": 2.784613895997609,
+      "battles_per_second": 69.3094293170782,
+      "decisions_per_second": 729.3650307926727
+    }
+  },
+  "mean_battle_decisions": 9.80171358629131,
+  "node_worker_count": 4,
+  "python_worker_count": 4,
+  "worker_startup_seconds": 0.023312796001846436,
+  "worker_crash_restart_count": 0,
+  "illegal_actions": 0,
+  "rollout_queue_wait_seconds": 2.7779660619380593,
+  "policy_sync_seconds": 0.0031079549989954103,
+  "timing_seconds": {
+    "simulation": 5.625376786000004,
+    "ipc_estimate": 3.2907444129994587,
+    "feature_extraction": 0.44127846519404557,
+    "policy_inference": 1.0880695889172785,
+    "rollout_assembly": 0.1836951510013023,
+    "ppo_update": 0.008660513998620445
+  },
+  "fractions": {
+    "simulation": 0.5288089275113843,
+    "ipc_bridge": 0.30934372753184014,
+    "feature_extraction": 0.041482019923337596,
+    "policy_inference": 0.10228308862884734,
+    "rollout_assembly": 0.017268111894619034,
+    "ppo": 0.0008141245099715894
+  },
+  "cpu": {
+    "logical_cpus": 8,
+    "system_utilization_percent": 74.40868553702985,
+    "learner_process_cpu_seconds": 6.530136000000001
+  },
+  "ram": {
+    "system_total_mib": 31599.98046875,
+    "system_available_mib": 17367.30078125,
+    "sampled_process_rss_mib": 3454.0078125,
+    "sampled_process_pss_mib": 1556.15625
+  },
+  "gpu": null,
+  "device_microbenchmark": [
+    {
+      "device": "cpu",
+      "batch_size": 2048,
+      "iterations": 10,
+      "seconds": 0.07259486700058915
+    }
+  ]
+}

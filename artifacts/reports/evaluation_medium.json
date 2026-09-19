@@ -1,0 +1,66 @@
+{
+  "random": {
+    "games": 100,
+    "wins": 63,
+    "losses": 33,
+    "draws": 4,
+    "win_rate": 0.63,
+    "mean_decisions": 8.52,
+    "action_distribution": [
+      197,
+      335,
+      148,
+      124,
+      48,
+      0,
+      0,
+      0,
+      0
+    ],
+    "move_role_distribution": {
+      "damage": 742,
+      "protect": 16,
+      "field": 3,
+      "pivot": 16,
+      "setup": 13,
+      "fixed": 10,
+      "recovery": 2,
+      "debuff": 2
+    },
+    "illegal_actions": 0,
+    "mean_top1_top2_margin": 0.02811129254696425,
+    "seconds": 2.1674261260013736
+  },
+  "damage": {
+    "games": 100,
+    "wins": 53,
+    "losses": 47,
+    "draws": 0,
+    "win_rate": 0.53,
+    "mean_decisions": 5.91,
+    "action_distribution": [
+      179,
+      179,
+      71,
+      107,
+      55,
+      0,
+      0,
+      0,
+      0
+    ],
+    "move_role_distribution": {
+      "damage": 496,
+      "setup": 21,
+      "pivot": 6,
+      "debuff": 3,
+      "field": 2,
+      "phaze": 4,
+      "utility": 2,
+      "fixed": 2
+    },
+    "illegal_actions": 0,
+    "mean_top1_top2_margin": 0.026902238996240845,
+    "seconds": 1.3104837899991253
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "workers": 2,
+  "active_battles": 2,
+  "battles": 10,
+  "completed_battles": 10,
+  "decisions": 70,
+  "wall_seconds": 1.8574515800028166,
+  "battles_per_second": 5.383720419772577,
+  "decisions_per_second": 37.686042938408036,
+  "per_worker_battles_per_second": 2.6918602098862885,
+  "per_worker_throughput": {
+    "0": {
+      "battles": 6,
+      "decisions": 36,
+      "worker_wall_seconds": 0.3000116390030598,
+      "battles_per_second": 19.999224096565154,
+      "decisions_per_second": 119.99534457939092
+    },
+    "1": {
+      "battles": 4,
+      "decisions": 34,
+      "worker_wall_seconds": 0.312432283997623,
+      "battles_per_second": 12.802774248612643,
+      "decisions_per_second": 108.82358111320747
+    }
+  },
+  "mean_battle_decisions": 7.0,
+  "node_worker_count": 2,
+  "python_worker_count": 2,
+  "worker_startup_seconds": 0.7348177690000739,
+  "worker_crash_restart_count": 0,
+  "illegal_actions": 0,
+  "rollout_queue_wait_seconds": 0.31292887200106634,
+  "policy_sync_seconds": 0.001161509000667138,
+  "timing_seconds": {
+    "simulation": 0.48771922000000023,
+    "ipc_estimate": 0.10540436803799702,
+    "feature_extraction": 0.004160435990343103,
+    "policy_inference": 0.009981801977119176,
+    "rollout_assembly": 0.002210724000178743,
+    "ppo_update": 0.003668394001579145
+  },
+  "fractions": {
+    "simulation": 0.7954387046111877,
+    "ipc_bridge": 0.1719077504727109,
+    "feature_extraction": 0.006785403730401029,
+    "policy_inference": 0.016279677545545705,
+    "rollout_assembly": 0.003605548772416723,
+    "ppo": 0.005982914867737968
+  },
+  "cpu": {
+    "logical_cpus": 8,
+    "system_utilization_percent": 32.99595141700405,
+    "learner_process_cpu_seconds": 2.1888340000000004
+  },
+  "ram": {
+    "system_total_mib": 31599.98046875,
+    "system_available_mib": 17321.84765625,
+    "sampled_process_rss_mib": 2235.1171875
+  },
+  "gpu": null,
+  "device_microbenchmark": [
+    {
+      "device": "cpu",
+      "batch_size": 2048,
+      "iterations": 10,
+      "seconds": 0.044072200002119644
+    }
+  ]
+}

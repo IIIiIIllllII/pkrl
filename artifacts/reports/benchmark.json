@@ -1,0 +1,46 @@
+{
+  "battles": 300,
+  "decisions": 3273,
+  "wall_seconds": 2.9147034819980036,
+  "battles_per_second": 102.92642179655017,
+  "decisions_per_second": 1122.9272618003624,
+  "mean_battle_decisions": 10.91,
+  "mean_battle_wall_seconds": 0.007018975113387569,
+  "node_worker_count": 1,
+  "active_battle_streams": 0,
+  "python_worker_count": 1,
+  "configured_concurrency": 1,
+  "timing_seconds": {
+    "simulation": 1.176727845,
+    "ipc_estimate": 0.5037284578563279,
+    "bridge_wait_total": 1.680456302856328,
+    "feature_extraction": 0.09071170217794133,
+    "policy_inference": 0.21970142694408423,
+    "rollout_assembly": 0.12373146499885479,
+    "ppo_update": 0.03400804400007473
+  },
+  "fractions": {
+    "simulation": 0.5476696212875163,
+    "ipc_bridge": 0.23444399222652856,
+    "feature_extraction": 0.042218805129183544,
+    "policy_inference": 0.10225286824141867,
+    "rollout_assembly": 0.05758677749082446,
+    "ppo": 0.015827935624528472
+  },
+  "cpu": {
+    "logical_cpus": 8,
+    "process_cpu_seconds": 2.365485,
+    "average_process_utilization_one_core_percent": 81.15696895447084
+  },
+  "gpu": null,
+  "device_microbenchmark": [
+    {
+      "device": "cpu",
+      "batch_size": 2048,
+      "iterations": 10,
+      "seconds": 0.07247505400300724
+    }
+  ],
+  "ping_round_trip_ms": 1.162919359994703,
+  "node_pid_sampled": 33
+}

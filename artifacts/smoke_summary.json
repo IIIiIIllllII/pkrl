@@ -1,0 +1,198 @@
+{
+  "battles": 1,
+  "environment_steps": 10,
+  "ppo_updates": 1,
+  "winner": "p1",
+  "seconds": 0.2946912560000783,
+  "steps_per_second": 33.93381987552879,
+  "checkpoint": "/home/alexa/projects/pkrl/artifacts/checkpoints/smoke.pt",
+  "checkpoint_roundtrip": true,
+  "lut": {
+    "schema_version": "gen3-lut-v1",
+    "scale": 3780.330382260072,
+    "parameters": 349,
+    "bytes": 349,
+    "tables": {
+      "action_bias": {
+        "offset": 0,
+        "shape": [
+          4
+        ]
+      },
+      "feature_action_slot": {
+        "offset": 4,
+        "shape": [
+          4
+        ]
+      },
+      "feature_move_role": {
+        "offset": 8,
+        "shape": [
+          13
+        ]
+      },
+      "feature_move_type": {
+        "offset": 21,
+        "shape": [
+          18
+        ]
+      },
+      "feature_damage_class": {
+        "offset": 39,
+        "shape": [
+          3
+        ]
+      },
+      "feature_power_bucket": {
+        "offset": 42,
+        "shape": [
+          5
+        ]
+      },
+      "feature_accuracy_bucket": {
+        "offset": 47,
+        "shape": [
+          5
+        ]
+      },
+      "feature_priority_bucket": {
+        "offset": 52,
+        "shape": [
+          3
+        ]
+      },
+      "feature_stab": {
+        "offset": 55,
+        "shape": [
+          2
+        ]
+      },
+      "feature_effectiveness": {
+        "offset": 57,
+        "shape": [
+          6
+        ]
+      },
+      "feature_pp_bucket": {
+        "offset": 63,
+        "shape": [
+          5
+        ]
+      },
+      "feature_user_hp": {
+        "offset": 68,
+        "shape": [
+          5
+        ]
+      },
+      "feature_target_hp": {
+        "offset": 73,
+        "shape": [
+          5
+        ]
+      },
+      "feature_user_status": {
+        "offset": 78,
+        "shape": [
+          6
+        ]
+      },
+      "feature_target_status": {
+        "offset": 84,
+        "shape": [
+          6
+        ]
+      },
+      "feature_speed_relation": {
+        "offset": 90,
+        "shape": [
+          3
+        ]
+      },
+      "feature_can_ko": {
+        "offset": 93,
+        "shape": [
+          2
+        ]
+      },
+      "feature_damage_fraction": {
+        "offset": 95,
+        "shape": [
+          5
+        ]
+      },
+      "feature_first_turn": {
+        "offset": 100,
+        "shape": [
+          2
+        ]
+      },
+      "feature_weather": {
+        "offset": 102,
+        "shape": [
+          5
+        ]
+      },
+      "feature_stage_summary": {
+        "offset": 107,
+        "shape": [
+          5
+        ]
+      },
+      "pair_effectiveness_move_role": {
+        "offset": 112,
+        "shape": [
+          6,
+          13
+        ]
+      },
+      "pair_user_hp_move_role": {
+        "offset": 190,
+        "shape": [
+          5,
+          13
+        ]
+      },
+      "pair_target_hp_can_ko": {
+        "offset": 255,
+        "shape": [
+          5,
+          2
+        ]
+      },
+      "pair_speed_relation_can_ko": {
+        "offset": 265,
+        "shape": [
+          3,
+          2
+        ]
+      },
+      "pair_target_status_move_role": {
+        "offset": 271,
+        "shape": [
+          6,
+          13
+        ]
+      }
+    }
+  },
+  "float_lut_bytes": 1396,
+  "quantization": {
+    "samples": 5000,
+    "integer_python_c_exact": true,
+    "integer_max_error": 0,
+    "top1_agreement": 0.9966,
+    "score_mae": 0.00027797831820525036,
+    "max_score_error": 0.001275471800307589,
+    "float_tie_rate": 0.0,
+    "quantized_tie_rate": 0.0032,
+    "table_bytes": 349
+  },
+  "coverage": "/home/alexa/projects/pkrl/artifacts/coverage/smoke.json",
+  "policy_loss": -1.4305115314527939e-07,
+  "value_loss": 0.480599969625473,
+  "entropy": 1.3812507390975952,
+  "approx_kl": 0.0,
+  "clip_fraction": 0.0,
+  "grad_norm": 4.789490222930908
+}

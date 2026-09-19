@@ -1,0 +1,267 @@
+diff --git a/include/config.h b/include/config.h
+index 4e2ee21bd..132cb1129 100644
+--- a/include/config.h
++++ b/include/config.h
+@@ -36,6 +36,14 @@
+ 
+ #define ENGLISH
+ 
++// Gen3RL move scoring. Switching and item decisions remain vanilla.
++#define BATTLE_AI_MODE_VANILLA    0
++#define BATTLE_AI_MODE_RL_AUGMENT 1
++#define BATTLE_AI_MODE_RL_REPLACE 2
++#ifndef BATTLE_AI_MODE
++#define BATTLE_AI_MODE BATTLE_AI_MODE_VANILLA
++#endif
++
+ #ifdef ENGLISH
+ #define UNITS_IMPERIAL
+ #define CHAR_DEC_SEPARATOR CHAR_PERIOD // Period is used as a decimal separator only in the UK and the US.
+diff --git a/src/battle_ai_script_commands.c b/src/battle_ai_script_commands.c
+index 5cb0a60a6..6cdab3283 100644
+--- a/src/battle_ai_script_commands.c
++++ b/src/battle_ai_script_commands.c
+@@ -2,6 +2,7 @@
+ #include "battle.h"
+ #include "battle_anim.h"
+ #include "battle_ai_script_commands.h"
++#include "battle_ai_rl.h"
+ #include "battle_factory.h"
+ #include "battle_setup.h"
+ #include "data.h"
+@@ -402,6 +403,14 @@ static u8 ChooseMoveOrAction_Singles(void)
+ 
+     RecordLastUsedMoveByTarget();
+ 
++#if BATTLE_AI_MODE == BATTLE_AI_MODE_RL_REPLACE
++    if (BattleAIRL_IsSupported())
++    {
++        BattleAIRL_ApplyMoveScores(AI_THINKING_STRUCT->score, FALSE);
++        AI_THINKING_STRUCT->aiFlags = 0;
++    }
++#endif
++
+     while (AI_THINKING_STRUCT->aiFlags != 0)
+     {
+         if (AI_THINKING_STRUCT->aiFlags & 1)
+@@ -414,6 +423,11 @@ static u8 ChooseMoveOrAction_Singles(void)
+         AI_THINKING_STRUCT->movesetIndex = 0;
+     }
+ 
++#if BATTLE_AI_MODE == BATTLE_AI_MODE_RL_AUGMENT
++    if (BattleAIRL_IsSupported())
++        BattleAIRL_ApplyMoveScores(AI_THINKING_STRUCT->score, TRUE);
++#endif
++
+     // Check special AI actions.
+     if (AI_THINKING_STRUCT->aiAction & AI_ACTION_FLEE)
+         return AI_CHOICE_FLEE;
+diff --git a/include/battle_ai_rl.h b/include/battle_ai_rl.h
+new file mode 100644
+index 000000000..0b70ee483
+--- /dev/null
++++ b/include/battle_ai_rl.h
+@@ -0,0 +1,5 @@
++#ifndef GUARD_BATTLE_AI_RL_H
++#define GUARD_BATTLE_AI_RL_H
++bool8 BattleAIRL_IsSupported(void);
++void BattleAIRL_ApplyMoveScores(s8 moveScores[MAX_MON_MOVES], bool8 augment);
++#endif
+diff --git a/src/battle_ai_rl.c b/src/battle_ai_rl.c
+new file mode 100644
+index 000000000..23145e49c
+--- /dev/null
++++ b/src/battle_ai_rl.c
+@@ -0,0 +1,145 @@
++#include "global.h"
++#include "battle.h"
++#include "battle_ai_rl.h"
++#include "data/battle_ai_rl_lut.h"
++#include "constants/battle.h"
++#include "constants/moves.h"
++#include "constants/pokemon.h"
++#include "constants/battle_move_effects.h"
++
++static u8 MoveRole(u16 move)
++{
++    switch (move)
++    {
++    case MOVE_PROTECT: case MOVE_DETECT: case MOVE_ENDURE: return 5;
++    case MOVE_RECOVER: case MOVE_SOFT_BOILED: case MOVE_REST: case MOVE_SYNTHESIS:
++    case MOVE_MOONLIGHT: case MOVE_MORNING_SUN: case MOVE_SLACK_OFF: return 4;
++    case MOVE_SUNNY_DAY: case MOVE_RAIN_DANCE: case MOVE_SANDSTORM: case MOVE_HAIL: return 6;
++    case MOVE_SPIKES: return 7;
++    case MOVE_ROAR: case MOVE_WHIRLWIND: return 8;
++    case MOVE_BATON_PASS: return 9;
++    case MOVE_EXPLOSION: case MOVE_SELF_DESTRUCT: case MOVE_MEMENTO: return 10;
++    case MOVE_SEISMIC_TOSS: case MOVE_NIGHT_SHADE: case MOVE_DRAGON_RAGE:
++    case MOVE_SONIC_BOOM: case MOVE_PSYWAVE: case MOVE_SUPER_FANG: return 11;
++    }
++    if (gBattleMoves[move].power != 0) return 0;
++    switch (gBattleMoves[move].effect)
++    {
++    case EFFECT_ATTACK_UP: case EFFECT_DEFENSE_UP: case EFFECT_SPEED_UP:
++    case EFFECT_SPECIAL_ATTACK_UP: case EFFECT_SPECIAL_DEFENSE_UP: case EFFECT_ACCURACY_UP:
++    case EFFECT_EVASION_UP: case EFFECT_ATTACK_UP_2: case EFFECT_DEFENSE_UP_2:
++    case EFFECT_SPEED_UP_2: case EFFECT_SPECIAL_ATTACK_UP_2: case EFFECT_SPECIAL_DEFENSE_UP_2:
++    case EFFECT_ACCURACY_UP_2: case EFFECT_EVASION_UP_2: return 2;
++    case EFFECT_ATTACK_DOWN: case EFFECT_DEFENSE_DOWN: case EFFECT_SPEED_DOWN:
++    case EFFECT_SPECIAL_ATTACK_DOWN: case EFFECT_SPECIAL_DEFENSE_DOWN: case EFFECT_ACCURACY_DOWN:
++    case EFFECT_EVASION_DOWN: case EFFECT_ATTACK_DOWN_2: case EFFECT_DEFENSE_DOWN_2:
++    case EFFECT_SPEED_DOWN_2: case EFFECT_SPECIAL_ATTACK_DOWN_2: case EFFECT_SPECIAL_DEFENSE_DOWN_2:
++    case EFFECT_ACCURACY_DOWN_2: case EFFECT_EVASION_DOWN_2: return 3;
++    case EFFECT_SLEEP: case EFFECT_POISON: case EFFECT_TOXIC: case EFFECT_PARALYZE:
++    case EFFECT_WILL_O_WISP: case EFFECT_CONFUSE: return 1;
++    }
++    return 12;
++}
++
++static u8 StatusBucket(u32 status)
++{
++    if (status & STATUS1_BURN) return 1;
++    if (status & STATUS1_PARALYSIS) return 2;
++    if (status & (STATUS1_POISON | STATUS1_TOXIC_POISON)) return 3;
++    if (status & STATUS1_SLEEP) return 4;
++    if (status & STATUS1_FREEZE) return 5;
++    return 0;
++}
++
++static u8 HpBucket(u16 hp, u16 maxHp)
++{
++    if (hp == 0 || maxHp == 0) return 0;
++    if (hp * 4 <= maxHp) return 1;
++    if (hp * 2 <= maxHp) return 2;
++    if (hp * 4 <= maxHp * 3) return 3;
++    return 4;
++}
++
++static u8 TypeSchemaId(u8 type)
++{
++    static const u8 sTypeMap[] = {0, 6, 9, 7, 8, 12, 11, 13, 16, 17, 1, 2, 4, 3, 10, 5, 14, 15};
++    return type < ARRAY_COUNT(sTypeMap) ? sTypeMap[type] : 17;
++}
++
++static u8 TypeEffectBucket(u8 moveType, u8 defender)
++{
++    u16 i, multiplier = 10;
++    u8 type1 = gBattleMons[defender].types[0];
++    u8 type2 = gBattleMons[defender].types[1];
++    for (i = 0; gTypeEffectiveness[i] != TYPE_ENDTABLE; i += 3)
++    {
++        if (gTypeEffectiveness[i] != moveType) continue;
++        if (gTypeEffectiveness[i + 1] == type1)
++            multiplier = multiplier * gTypeEffectiveness[i + 2] / 10;
++        if (type2 != type1 && gTypeEffectiveness[i + 1] == type2)
++            multiplier = multiplier * gTypeEffectiveness[i + 2] / 10;
++    }
++    if (multiplier == 0) return 0;
++    if (multiplier <= 2) return 1;
++    if (multiplier <= 5) return 2;
++    if (multiplier <= 10) return 3;
++    if (multiplier <= 20) return 4;
++    return 5;
++}
++
++bool8 BattleAIRL_IsSupported(void)
++{
++    const u32 excluded = BATTLE_TYPE_DOUBLE | BATTLE_TYPE_LINK | BATTLE_TYPE_SAFARI
++        | BATTLE_TYPE_ROAMER | BATTLE_TYPE_FIRST_BATTLE | BATTLE_TYPE_BATTLE_TOWER
++        | BATTLE_TYPE_FRONTIER | BATTLE_TYPE_EREADER_TRAINER | BATTLE_TYPE_SECRET_BASE
++        | BATTLE_TYPE_INGAME_PARTNER | BATTLE_TYPE_RECORDED_LINK;
++    return (gBattleTypeFlags & BATTLE_TYPE_TRAINER) && !(gBattleTypeFlags & excluded);
++}
++
++void BattleAIRL_ApplyMoveScores(s8 moveScores[MAX_MON_MOVES], bool8 augment)
++{
++    u8 slot;
++    u8 target = BATTLE_OPPOSITE(gActiveBattler);
++    u8 features[MAX_MON_MOVES][RL_FEATURE_COUNT] = {0};
++    s16 scores[MAX_MON_MOVES];
++    for (slot = 0; slot < MAX_MON_MOVES; slot++)
++    {
++        u16 move = gBattleMons[gActiveBattler].moves[slot];
++        const struct BattleMove *data = &gBattleMoves[move];
++        u8 power = data->power;
++        u8 accuracy = data->accuracy;
++        u8 pp = gBattleMons[gActiveBattler].pp[slot];
++        features[slot][RL_FEATURE_ACTION_SLOT] = slot;
++        features[slot][RL_FEATURE_MOVE_ROLE] = MoveRole(move);
++        features[slot][RL_FEATURE_MOVE_TYPE] = TypeSchemaId(data->type);
++        features[slot][RL_FEATURE_DAMAGE_CLASS] = power == 0 ? 2 : data->type <= TYPE_STEEL ? 0 : 1;
++        features[slot][RL_FEATURE_POWER_BUCKET] = power == 0 ? 0 : power <= 40 ? 1 : power <= 70 ? 2 : power <= 100 ? 3 : 4;
++        features[slot][RL_FEATURE_ACCURACY_BUCKET] = accuracy == 0 ? 0 : accuracy <= 70 ? 1 : accuracy <= 85 ? 2 : accuracy < 100 ? 3 : 4;
++        features[slot][RL_FEATURE_PRIORITY_BUCKET] = data->priority < 0 ? 0 : data->priority > 0 ? 2 : 1;
++        features[slot][RL_FEATURE_STAB] = data->type == gBattleMons[gActiveBattler].types[0] || data->type == gBattleMons[gActiveBattler].types[1];
++        features[slot][RL_FEATURE_EFFECTIVENESS] = TypeEffectBucket(data->type, target);
++        features[slot][RL_FEATURE_PP_BUCKET] = pp == 0 ? 0 : pp <= 4 ? 1 : pp <= 9 ? 2 : pp <= 19 ? 3 : 4;
++        features[slot][RL_FEATURE_USER_HP] = HpBucket(gBattleMons[gActiveBattler].hp, gBattleMons[gActiveBattler].maxHP);
++        features[slot][RL_FEATURE_TARGET_HP] = HpBucket(gBattleMons[target].hp, gBattleMons[target].maxHP);
++        features[slot][RL_FEATURE_USER_STATUS] = StatusBucket(gBattleMons[gActiveBattler].status1);
++        features[slot][RL_FEATURE_TARGET_STATUS] = StatusBucket(gBattleMons[target].status1);
++        features[slot][RL_FEATURE_SPEED_RELATION] = gBattleMons[gActiveBattler].speed < gBattleMons[target].speed ? 0 : gBattleMons[gActiveBattler].speed == gBattleMons[target].speed ? 1 : 2;
++        features[slot][RL_FEATURE_FIRST_TURN] = gDisableStructs[gActiveBattler].isFirstTurn;
++        features[slot][RL_FEATURE_WEATHER] = (gBattleWeather & B_WEATHER_SUN) ? 1
++            : (gBattleWeather & B_WEATHER_RAIN) ? 2
++            : (gBattleWeather & B_WEATHER_SANDSTORM) ? 3
++            : (gBattleWeather & B_WEATHER_HAIL) ? 4 : 0;
++        features[slot][RL_FEATURE_STAGE_SUMMARY] = 2;
++    }
++    BattleAiRlScore(features, scores);
++    for (slot = 0; slot < MAX_MON_MOVES; slot++)
++    {
++        s32 value;
++        if (gBattleMons[gActiveBattler].moves[slot] == MOVE_NONE || moveScores[slot] == 0)
++            continue;
++        value = (augment ? moveScores[slot] : 64) + scores[slot];
++        if (value < 1) value = 1;
++        if (value > 127) value = 127;
++        moveScores[slot] = (s8)value;
++    }
++}
+diff --git a/src/data/battle_ai_rl_lut.h b/src/data/battle_ai_rl_lut.h
+new file mode 100644
+index 000000000..cae79d270
+--- /dev/null
++++ b/src/data/battle_ai_rl_lut.h
+@@ -0,0 +1,29 @@
++#ifndef GUARD_BATTLE_AI_RL_LUT_H
++#define GUARD_BATTLE_AI_RL_LUT_H
++#include <stdint.h>
++#define RL_FEATURE_COUNT 20
++#define RL_LUT_PARAMETERS 349
++#define RL_FEATURE_ACTION_SLOT 0
++#define RL_FEATURE_MOVE_ROLE 1
++#define RL_FEATURE_MOVE_TYPE 2
++#define RL_FEATURE_DAMAGE_CLASS 3
++#define RL_FEATURE_POWER_BUCKET 4
++#define RL_FEATURE_ACCURACY_BUCKET 5
++#define RL_FEATURE_PRIORITY_BUCKET 6
++#define RL_FEATURE_STAB 7
++#define RL_FEATURE_EFFECTIVENESS 8
++#define RL_FEATURE_PP_BUCKET 9
++#define RL_FEATURE_USER_HP 10
++#define RL_FEATURE_TARGET_HP 11
++#define RL_FEATURE_USER_STATUS 12
++#define RL_FEATURE_TARGET_STATUS 13
++#define RL_FEATURE_SPEED_RELATION 14
++#define RL_FEATURE_CAN_KO 15
++#define RL_FEATURE_DAMAGE_FRACTION 16
++#define RL_FEATURE_FIRST_TURN 17
++#define RL_FEATURE_WEATHER 18
++#define RL_FEATURE_STAGE_SUMMARY 19
++extern const int8_t gBattleAiRlLut[RL_LUT_PARAMETERS];
++void BattleAiRlScore(const uint8_t features[4][RL_FEATURE_COUNT], int16_t scores[4]);
++#endif
++
+diff --git a/src/data/battle_ai_rl_lut.c b/src/data/battle_ai_rl_lut.c
+new file mode 100644
+index 000000000..1ad7396b1
+--- /dev/null
++++ b/src/data/battle_ai_rl_lut.c
+@@ -0,0 +1,6 @@
++#include "battle_ai_rl_lut.h"
++const int8_t gBattleAiRlLut[RL_LUT_PARAMETERS] = {-55,10,-9,-63,-5,21,-10,-6,12,-48,-3,7,14,-7,-69,36,-32,4,127,17,-18,10,27,-40,-59,9,32,17,57,3,47,-18,46,3,-33,-49,63,-25,-29,-18,35,13,-1,33,33,26,-11,47,-1,-90,25,8,-32,18,43,-36,27,68,65,18,-6,42,8,-22,-66,7,-28,-2,-17,-49,-32,16,-4,15,-16,11,11,64,51,85,-7,-6,-20,18,16,-59,-17,-3,65,-103,-37,25,-19,-10,-3,12,63,43,-28,21,-37,12,11,-2,10,-4,-77,-53,59,26,5,56,-20,2,-26,-46,83,21,-24,14,6,-15,16,-15,7,3,25,39,-15,-34,12,20,-4,16,57,-21,8,-25,-30,-15,3,4,-13,19,-8,-72,-35,35,-66,-2,-57,24,-40,-25,-3,-19,-44,12,8,-64,75,-37,-16,-11,65,-39,-41,-67,-28,36,-90,13,2,4,20,-21,-40,-47,38,-54,33,-12,-18,-28,14,9,-19,-8,-17,-43,-11,-8,-24,10,13,17,7,77,18,-42,17,31,9,-38,10,-14,30,49,-9,19,35,45,-13,-70,-53,-34,39,60,113,-73,-52,-31,-44,-70,16,-11,24,64,20,44,8,-115,1,15,6,74,24,-6,-63,54,101,-54,22,-49,-26,40,-31,35,5,-40,-8,-11,-29,-13,-50,34,-15,52,-23,-35,0,52,-23,24,-46,0,-11,47,-9,15,63,35,-4,33,-45,-20,-5,2,10,-10,-11,-21,15,-77,2,-1,-34,17,-74,-15,6,35,-59,12,-14,21,-80,48,-49,9,-40,-39,17,37,-3,-6,30,22,57,-7,-31,-61,11,7,70,-28,22,34,-10,28,-33,-11,-65,62,1,-29,-8,6,64,-72,-21,18,18,-25,-43,-45,16,-24,27,-4,-22,-32,-24,8,-62,-10,49,-41,-44};
++void BattleAiRlScore(const uint8_t f[4][RL_FEATURE_COUNT], int16_t out[4]) {
++  for (unsigned m=0;m<4;m++) { int32_t s=gBattleAiRlLut[m] + gBattleAiRlLut[4 + f[m][0]] + gBattleAiRlLut[8 + f[m][1]] + gBattleAiRlLut[21 + f[m][2]] + gBattleAiRlLut[39 + f[m][3]] + gBattleAiRlLut[42 + f[m][4]] + gBattleAiRlLut[47 + f[m][5]] + gBattleAiRlLut[52 + f[m][6]] + gBattleAiRlLut[55 + f[m][7]] + gBattleAiRlLut[57 + f[m][8]] + gBattleAiRlLut[63 + f[m][9]] + gBattleAiRlLut[68 + f[m][10]] + gBattleAiRlLut[73 + f[m][11]] + gBattleAiRlLut[78 + f[m][12]] + gBattleAiRlLut[84 + f[m][13]] + gBattleAiRlLut[90 + f[m][14]] + gBattleAiRlLut[93 + f[m][15]] + gBattleAiRlLut[95 + f[m][16]] + gBattleAiRlLut[100 + f[m][17]] + gBattleAiRlLut[102 + f[m][18]] + gBattleAiRlLut[107 + f[m][19]] + gBattleAiRlLut[112 + f[m][8] * 13 + f[m][1]] + gBattleAiRlLut[190 + f[m][10] * 13 + f[m][1]] + gBattleAiRlLut[255 + f[m][11] * 2 + f[m][15]] + gBattleAiRlLut[265 + f[m][14] * 2 + f[m][15]] + gBattleAiRlLut[271 + f[m][13] * 13 + f[m][1]];
++    if(s>32767)s=32767; if(s<-32768)s=-32768; out[m]=(int16_t)s; }
++}

@@ -1,0 +1,64 @@
+{
+  "workers": 1,
+  "active_battles": 1,
+  "battles": 388,
+  "completed_battles": 388,
+  "decisions": 3797,
+  "wall_seconds": 3.742002789000253,
+  "battles_per_second": 103.68779016962239,
+  "decisions_per_second": 1014.697266170248,
+  "per_worker_battles_per_second": 103.68779016962239,
+  "per_worker_throughput": {
+    "0": {
+      "battles": 388,
+      "decisions": 3797,
+      "worker_wall_seconds": 2.735406960007822,
+      "battles_per_second": 141.84361072141547,
+      "decisions_per_second": 1388.0932729618933
+    }
+  },
+  "mean_battle_decisions": 9.786082474226804,
+  "node_worker_count": 1,
+  "python_worker_count": 1,
+  "worker_startup_seconds": 0.016216692001762567,
+  "worker_crash_restart_count": 0,
+  "illegal_actions": 0,
+  "rollout_queue_wait_seconds": 2.9092075470143755,
+  "policy_sync_seconds": 0.0020077849985682406,
+  "timing_seconds": {
+    "simulation": 1.475320242,
+    "ipc_estimate": 0.655637254148767,
+    "feature_extraction": 0.13056691401652643,
+    "policy_inference": 0.31423863007876207,
+    "rollout_assembly": 0.1085470379985054,
+    "ppo_update": 0.029384718000073917
+  },
+  "fractions": {
+    "simulation": 0.5436573943550024,
+    "ipc_bridge": 0.2416031659332355,
+    "feature_extraction": 0.048114074654713776,
+    "policy_inference": 0.1157973367210841,
+    "rollout_assembly": 0.039999722204869526,
+    "ppo": 0.010828306131094704
+  },
+  "cpu": {
+    "logical_cpus": 8,
+    "system_utilization_percent": 28.840970350404312,
+    "learner_process_cpu_seconds": 3.168694
+  },
+  "ram": {
+    "system_total_mib": 31599.98046875,
+    "system_available_mib": 18007.51953125,
+    "sampled_process_rss_mib": 1173.3828125,
+    "sampled_process_pss_mib": 833.1484375
+  },
+  "gpu": null,
+  "device_microbenchmark": [
+    {
+      "device": "cpu",
+      "batch_size": 2048,
+      "iterations": 10,
+      "seconds": 0.06973258700236329
+    }
+  ]
+}

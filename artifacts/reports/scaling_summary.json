@@ -1,0 +1,51 @@
+{
+  "minutes_per_setting": 0.05,
+  "selection_rule": "smallest stable worker count within 97% of maximum decisions/sec",
+  "recommended_workers": 4,
+  "results": [
+    {
+      "workers": 1,
+      "battles_per_second": 103.68779016962239,
+      "decisions_per_second": 1014.697266170248,
+      "cpu_percent": 28.840970350404312,
+      "gpu_percent": null,
+      "speedup": 1.0,
+      "parallel_efficiency": 1.0,
+      "worker_crashes": 0,
+      "illegal_actions": 0
+    },
+    {
+      "workers": 2,
+      "battles_per_second": 203.50756190947217,
+      "decisions_per_second": 2022.8651653801535,
+      "cpu_percent": 47.20472440944882,
+      "gpu_percent": null,
+      "speedup": 1.993565206906503,
+      "parallel_efficiency": 0.9967826034532515,
+      "worker_crashes": 0,
+      "illegal_actions": 0
+    },
+    {
+      "workers": 4,
+      "battles_per_second": 249.79645510119843,
+      "decisions_per_second": 2448.433307772824,
+      "cpu_percent": 74.40868553702985,
+      "gpu_percent": null,
+      "speedup": 2.412969256351599,
+      "parallel_efficiency": 0.6032423140878997,
+      "worker_crashes": 0,
+      "illegal_actions": 0
+    },
+    {
+      "workers": 8,
+      "battles_per_second": 246.77094926041005,
+      "decisions_per_second": 2474.5212377530706,
+      "cpu_percent": 94.0101127965772,
+      "gpu_percent": null,
+      "speedup": 2.438679318702225,
+      "parallel_efficiency": 0.30483491483777814,
+      "worker_crashes": 0,
+      "illegal_actions": 0
+    }
+  ]
+}

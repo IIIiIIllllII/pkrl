@@ -1,0 +1,30 @@
+{
+  "real_states": 500,
+  "source_battles": null,
+  "top1_agreement": 0.996,
+  "action_ranking_disagreements": 2,
+  "score_mae": 0.00031978825645500176,
+  "max_score_error": 0.001287623447930722,
+  "float_tie_rate": 0.0,
+  "quantized_tie_rate": 0.014,
+  "tie_rate_change": 0.014,
+  "disagreements_by_move_role": {
+    "status": 1,
+    "phaze": 1
+  },
+  "disagreements_by_feature_bucket": {
+    "user_hp:three_quarters": 2,
+    "target_hp:full": 2,
+    "effectiveness:quadruple": 1,
+    "speed_relation:slower": 1,
+    "weather:none": 1,
+    "can_ko:no": 2,
+    "effectiveness:half": 1,
+    "speed_relation:faster": 1,
+    "weather:sun": 1
+  },
+  "domains": {
+    "cartridge-validation": 328,
+    "synthetic": 172
+  }
+}

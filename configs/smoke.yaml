@@ -1,0 +1,13 @@
+seed: 7
+format: gen3customgame
+workers: 1
+rollout_size: 64
+learning_rate: 0.0003
+ppo: {gamma: 0.99, gae_lambda: 0.95, clip: 0.2, entropy: 0.01, value: 0.5, gradient_clip: 0.5}
+reward: {terminal: true, faint: 0.0, hp_delta: 0.0}
+self_play: {random: 0.5, heuristic: 0.5, historical: 0.0}
+team_distribution: synthetic
+feature_schema: gen3-lut-v1
+checkpoint_interval: 1
+evaluation_interval: 1
+

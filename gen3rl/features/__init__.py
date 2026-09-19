@@ -1,0 +1,4 @@
+from .schema import SCHEMA_VERSION, FEATURE_SPECS, PAIR_SPECS
+
+__all__ = ["SCHEMA_VERSION", "FEATURE_SPECS", "PAIR_SPECS"]
+

@@ -1,0 +1,8 @@
+seed: 9001
+format: gen3customgame
+games: 100
+domains: [cartridge, synthetic]
+matched_seeds: true
+deterministic: true
+competitive_format: gen3ou
+
