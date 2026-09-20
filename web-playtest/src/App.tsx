@@ -14,7 +14,10 @@ function randomPolicy(): string { const bytes = new Uint8Array(1); crypto.getRan
 
 async function battleRequest(input: BattleApiInput): Promise<BattleResponse> {
   const response = await fetch('/api/battle', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(input)})
-  const value = await response.json()
+  const body = await response.text()
+  let value: {error?: string} & Partial<BattleResponse>
+  try { value = JSON.parse(body) }
+  catch { throw new Error(`Battle API returned non-JSON (${response.status}): ${body.slice(0, 180) || 'empty response'}`) }
   if (!response.ok || value.error) throw new Error(value.error || `battle API returned ${response.status}`)
   return value as BattleResponse
 }

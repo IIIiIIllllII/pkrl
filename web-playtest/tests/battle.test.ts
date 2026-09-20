@@ -1,10 +1,18 @@
 import {describe, expect, it} from 'vitest'
-import {replayBattle} from '../api/simulator'
+import {replayBattle} from '../api/_simulator'
+import battleHandler from '../api/battle'
 import type {BattleApiInput} from '../src/types'
 
 const base: BattleApiInput = {battle_id: 'test-battle', seed: [44, 45, 46, 47], policy_id: 'v1-100m', human_team_id: 'rom-npc', ai_team_id: 'rom-npc', human_choices: []}
 
 describe('stateless pinned simulator', () => {
+  it('serves JSON through the Vercel Web handler', async () => {
+    const request = new Request('https://playtest.example/api/battle', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(base)})
+    const response = await battleHandler.fetch(request); const body = await response.json()
+    expect(response.status).toBe(200); expect(response.headers.get('content-type')).toContain('application/json')
+    expect(body).toMatchObject({battle_id: 'test-battle', feature_schema: 'gen3-lut-v1', terminal: false})
+  })
+
   it('is deterministic and never returns an illegal AI action', async () => {
     const first = await replayBattle(base); const second = await replayBattle(base)
     expect(first).toEqual(second); expect(first.terminal).toBe(false); expect(first.legal_actions.length).toBeGreaterThan(0)
