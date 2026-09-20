@@ -3,5 +3,5 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "functions": {"api/battle.ts": {"maxDuration": 30, "includeFiles": "vendor/pokemon-showdown/**"}}
+  "functions": {"api/battle.ts": {"maxDuration": 30, "includeFiles": "{vendor/pokemon-showdown/**,public/policies/**,node_modules/ts-chacha20/**}"}}
 }

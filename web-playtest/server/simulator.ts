@@ -4,7 +4,14 @@ import {TEAM_FIXTURES, teamById} from '../src/data/teams.ts'
 import {encodeRequest, featureCategories} from '../src/policy/encoder.ts'
 import {FEATURE_INDEX, FEATURE_VALUES, SCHEMA_VERSION} from '../src/policy/schema.ts'
 import {policyScores, selectTop1, validatePolicy} from '../src/policy/inference.ts'
-const require = createRequire(import.meta.url)
+let runtimeRequire: NodeRequire | null = null
+
+function getRuntimeRequire(): NodeRequire {
+  // Vercel emits api/battle.js as CommonJS, where import.meta.url is not a
+  // reliable base. Root resolution at the generated entrypoint instead.
+  runtimeRequire ||= createRequire(`${process.cwd()}/api/battle.js`)
+  return runtimeRequire
+}
 let BattleStream: any
 let getPlayerStreams: any
 let Dex: any
@@ -13,19 +20,21 @@ function loadPinnedSimulator(): void {
   if (BattleStream && getPlayerStreams && Dex) return
   // Delay filesystem-backed CommonJS loading until the request boundary. This
   // keeps Vercel packaging errors catchable and preserves the exact vendored build.
-  require('ts-chacha20')
-  ;({BattleStream, getPlayerStreams} = require('../vendor/pokemon-showdown/dist/sim/battle-stream'))
-  ;({Dex} = require('../vendor/pokemon-showdown/dist/sim/dex'))
+  const runtime = getRuntimeRequire()
+  runtime('ts-chacha20')
+  ;({BattleStream, getPlayerStreams} = runtime('../vendor/pokemon-showdown/dist/sim/battle-stream'))
+  ;({Dex} = runtime('../vendor/pokemon-showdown/dist/sim/dex'))
 }
 
 let POLICIES: Record<string, PolicyAsset> | null = null
 
 function loadPolicies(): Record<string, PolicyAsset> {
   if (POLICIES) return POLICIES
+  const runtime = getRuntimeRequire()
   POLICIES = {
-    'v1-10m': require('../public/policies/v1-10m.json') as PolicyAsset,
-    'v1-50m': require('../public/policies/v1-50m.json') as PolicyAsset,
-    'v1-100m': require('../public/policies/v1-100m.json') as PolicyAsset,
+    'v1-10m': runtime('../public/policies/v1-10m.json') as PolicyAsset,
+    'v1-50m': runtime('../public/policies/v1-50m.json') as PolicyAsset,
+    'v1-100m': runtime('../public/policies/v1-100m.json') as PolicyAsset,
   }
   return POLICIES
 }
