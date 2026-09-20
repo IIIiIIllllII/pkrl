@@ -10,10 +10,17 @@ import policy50 from '../public/policies/v1-50m.json' with {type: 'json'}
 import policy100 from '../public/policies/v1-100m.json' with {type: 'json'}
 
 const require = createRequire(import.meta.url)
-// This vendored dist is built from the exact training commit; the npm package is
-// retained only for its runtime dependencies because npm 0.11.11 is not byte-identical.
-const {BattleStream, getPlayerStreams} = require('../vendor/pokemon-showdown/dist/sim/battle-stream')
-const {Dex} = require('../vendor/pokemon-showdown/dist/sim/dex')
+let BattleStream: any
+let getPlayerStreams: any
+let Dex: any
+
+function loadPinnedSimulator(): void {
+  if (BattleStream && getPlayerStreams && Dex) return
+  // Delay filesystem-backed CommonJS loading until the request boundary. This
+  // keeps Vercel packaging errors catchable and preserves the exact vendored build.
+  ;({BattleStream, getPlayerStreams} = require('../vendor/pokemon-showdown/dist/sim/battle-stream'))
+  ;({Dex} = require('../vendor/pokemon-showdown/dist/sim/dex'))
+}
 
 const POLICIES: Record<string, PolicyAsset> = {
   'v1-10m': policy10 as unknown as PolicyAsset, 'v1-50m': policy50 as unknown as PolicyAsset, 'v1-100m': policy100 as unknown as PolicyAsset,
@@ -149,6 +156,7 @@ function validateInput(input: BattleApiInput): void {
 }
 
 export async function replayBattle(input: BattleApiInput, testTeams?: {human: Array<Record<string, unknown>>; ai: Array<Record<string, unknown>>}): Promise<BattleResponse> {
+  loadPinnedSimulator()
   validateInput(input); const asset = POLICIES[input.policy_id]; validatePolicy(asset)
   const humanTeam = teamById(input.human_team_id)!; const aiTeam = teamById(input.ai_team_id)!
   const battle = new BattleStream({keepAlive: true}); const streams = getPlayerStreams(battle)
