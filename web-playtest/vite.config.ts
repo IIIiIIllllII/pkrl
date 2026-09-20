@@ -1,6 +1,6 @@
 import {defineConfig, type Plugin} from 'vite'
 import react from '@vitejs/plugin-react'
-import {replayBattle} from './api/_simulator.ts'
+import {replayBattle} from './server/simulator.ts'
 
 function battleApi(): Plugin {
   return {name: 'local-battle-api', configureServer(server) {

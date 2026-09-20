@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {replayBattle} from '../api/_simulator'
+import {replayBattle} from '../server/simulator'
 import battleHandler from '../api/battle'
 import type {BattleApiInput} from '../src/types'
 
