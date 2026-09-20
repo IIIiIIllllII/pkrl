@@ -288,7 +288,6 @@ var Dex;
 function loadPinnedSimulator() {
   if (BattleStream && getPlayerStreams && Dex) return;
   const runtime = getRuntimeRequire();
-  runtime("ts-chacha20");
   ({ BattleStream, getPlayerStreams } = runtime("../vendor/pokemon-showdown/dist/sim/battle-stream"));
   ({ Dex } = runtime("../vendor/pokemon-showdown/dist/sim/dex"));
 }

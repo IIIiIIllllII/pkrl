@@ -12,3 +12,7 @@ code, and unrelated mods are omitted. The upstream MIT license is included.
 
 Do not replace these files with the same-numbered npm release: its runtime data
 and simulator files are not byte-identical to the training checkout.
+
+The unmodified `ts-chacha20` 1.2.0 runtime dependency is colocated under
+`node_modules/` so Node can resolve the pinned simulator's PRNG dependency in a
+standalone Vercel function bundle.

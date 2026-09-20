@@ -21,7 +21,6 @@ function loadPinnedSimulator(): void {
   // Delay filesystem-backed CommonJS loading until the request boundary. This
   // keeps Vercel packaging errors catchable and preserves the exact vendored build.
   const runtime = getRuntimeRequire()
-  runtime('ts-chacha20')
   ;({BattleStream, getPlayerStreams} = runtime('../vendor/pokemon-showdown/dist/sim/battle-stream'))
   ;({Dex} = runtime('../vendor/pokemon-showdown/dist/sim/dex'))
 }
