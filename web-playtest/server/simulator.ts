@@ -1,14 +1,9 @@
 import {createRequire} from 'node:module'
-import 'ts-chacha20' // Keep the pinned simulator PRNG dependency in the serverless bundle.
 import type {ActionDiagnostic, AIDecision, BattleApiInput, BattleRequest, BattleResponse, LegalAction, Player, PolicyAsset, PublicState} from '../src/types.ts'
 import {TEAM_FIXTURES, teamById} from '../src/data/teams.ts'
 import {encodeRequest, featureCategories} from '../src/policy/encoder.ts'
 import {FEATURE_INDEX, FEATURE_VALUES, SCHEMA_VERSION} from '../src/policy/schema.ts'
 import {policyScores, selectTop1, validatePolicy} from '../src/policy/inference.ts'
-import policy10 from '../public/policies/v1-10m.json' with {type: 'json'}
-import policy50 from '../public/policies/v1-50m.json' with {type: 'json'}
-import policy100 from '../public/policies/v1-100m.json' with {type: 'json'}
-
 const require = createRequire(import.meta.url)
 let BattleStream: any
 let getPlayerStreams: any
@@ -18,12 +13,21 @@ function loadPinnedSimulator(): void {
   if (BattleStream && getPlayerStreams && Dex) return
   // Delay filesystem-backed CommonJS loading until the request boundary. This
   // keeps Vercel packaging errors catchable and preserves the exact vendored build.
+  require('ts-chacha20')
   ;({BattleStream, getPlayerStreams} = require('../vendor/pokemon-showdown/dist/sim/battle-stream'))
   ;({Dex} = require('../vendor/pokemon-showdown/dist/sim/dex'))
 }
 
-const POLICIES: Record<string, PolicyAsset> = {
-  'v1-10m': policy10 as unknown as PolicyAsset, 'v1-50m': policy50 as unknown as PolicyAsset, 'v1-100m': policy100 as unknown as PolicyAsset,
+let POLICIES: Record<string, PolicyAsset> | null = null
+
+function loadPolicies(): Record<string, PolicyAsset> {
+  if (POLICIES) return POLICIES
+  POLICIES = {
+    'v1-10m': require('../public/policies/v1-10m.json') as PolicyAsset,
+    'v1-50m': require('../public/policies/v1-50m.json') as PolicyAsset,
+    'v1-100m': require('../public/policies/v1-100m.json') as PolicyAsset,
+  }
+  return POLICIES
 }
 export const SIMULATOR_ID = 'pokemon-showdown@2ddfa0476f8207e12e204b1c69f7c7683b17633c/gen3customgame'
 
@@ -150,14 +154,14 @@ function diagnostics(asset: PolicyAsset, request: BattleRequest): {decision: AID
 function validateInput(input: BattleApiInput): void {
   if (!/^[-a-zA-Z0-9]{1,80}$/.test(input.battle_id)) throw new Error('invalid battle ID')
   if (!Array.isArray(input.seed) || input.seed.length !== 4 || input.seed.some(value => !Number.isInteger(value) || value < 0 || value > 65535)) throw new Error('seed must contain four uint16 values')
-  if (!POLICIES[input.policy_id]) throw new Error('unknown policy ID')
+  if (!loadPolicies()[input.policy_id]) throw new Error('unknown policy ID')
   if (!teamById(input.human_team_id) || !teamById(input.ai_team_id)) throw new Error('unknown team fixture')
   if (!Array.isArray(input.human_choices) || input.human_choices.length > 500 || input.human_choices.some(choice => !/^(move|switch) [1-6]$/.test(choice))) throw new Error('invalid choice history')
 }
 
 export async function replayBattle(input: BattleApiInput, testTeams?: {human: Array<Record<string, unknown>>; ai: Array<Record<string, unknown>>}): Promise<BattleResponse> {
   loadPinnedSimulator()
-  validateInput(input); const asset = POLICIES[input.policy_id]; validatePolicy(asset)
+  validateInput(input); const asset = loadPolicies()[input.policy_id]; validatePolicy(asset)
   const humanTeam = teamById(input.human_team_id)!; const aiTeam = teamById(input.ai_team_id)!
   const battle = new BattleStream({keepAlive: true}); const streams = getPlayerStreams(battle)
   const publicState = {p1: initialPublic(), p2: initialPublic()}; const allHumanChunks: string[] = []; const aiDecisions: AIDecision[] = []
