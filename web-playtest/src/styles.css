@@ -6,6 +6,7 @@ button { border: 1px solid #c5ccd8; background: white; color: #172033; border-ra
 button:hover { border-color: #3559d8; transform: translateY(-1px); }
 button:disabled { cursor: wait; opacity: .55; transform: none; }
 .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0; }
+.languageTabs { display: flex; justify-content: flex-end; gap: 4px; margin-bottom: 20px; }.languageTabs button { padding: .45rem .8rem; border-radius: 8px; color: #697287; }.languageTabs button.active { color: white; background: #172033; border-color: #172033; }
 header h1 { margin: .15rem 0 .45rem; letter-spacing: -.04em; font-size: clamp(2.2rem, 6vw, 4.2rem); }
 header > p:last-child { color: #586176; max-width: 650px; font-size: 1.08rem; }
 .eyebrow { color: #3559d8; text-transform: uppercase; letter-spacing: .13em; font-weight: 800; font-size: .76rem; margin: 0; }
