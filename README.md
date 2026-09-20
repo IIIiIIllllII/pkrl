@@ -44,6 +44,13 @@ The GBA build additionally requires pokeemerald's documented agbcc or modern
 devkitARM toolchain and a legally obtained local `baserom.gba`. Their absence
 does not affect simulation, training, export, or host parity.
 
+## Human v1 web playtest
+
+The Vercel-ready human-vs-LUT research app is documented in
+[`web-playtest/README.md`](web-playtest/README.md). It uses the pinned simulator,
+frozen 10M/50M/100M assets, request-only observations, structured JSON logging,
+blind checkpoint tests, and local browser storage. It does not start training.
+
 ## Long-run preparation
 
 ```bash

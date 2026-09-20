@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "composite": true, "skipLibCheck": true, "module": "ESNext", "moduleResolution": "Bundler",
+    "allowSyntheticDefaultImports": true, "allowImportingTsExtensions": true, "strict": true, "target": "ES2022", "types": ["node", "vitest/globals"], "noEmit": true
+  },
+  "include": ["vite.config.ts", "api", "tests", "src/types.ts", "src/data", "src/policy", "src/research"]
+}

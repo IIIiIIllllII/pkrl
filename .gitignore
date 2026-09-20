@@ -12,6 +12,7 @@ node_modules/
 showdown_bridge/dist/
 build/
 dist/
+*.tsbuildinfo
 *.log
 /artifacts/checkpoints/
 /artifacts/runs/
