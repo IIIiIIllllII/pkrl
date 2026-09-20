@@ -1,5 +1,5 @@
-import type {PolicyAsset} from '../types.ts'
-import {FEATURE_INDEX, FEATURE_NAMES, PAIR_SPECS, SCHEMA_VERSION} from './schema.ts'
+import type {PolicyAsset} from '../types'
+import {FEATURE_INDEX, FEATURE_NAMES, PAIR_SPECS, SCHEMA_VERSION} from './schema'
 
 function at(table: number[] | number[][], ...indices: number[]): number {
   let value: unknown = table

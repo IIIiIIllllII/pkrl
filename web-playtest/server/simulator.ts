@@ -1,9 +1,9 @@
 import {createRequire} from 'node:module'
-import type {ActionDiagnostic, AIDecision, BattleApiInput, BattleRequest, BattleResponse, LegalAction, Player, PolicyAsset, PublicState} from '../src/types.ts'
-import {TEAM_FIXTURES, teamById} from '../src/data/teams.ts'
-import {encodeRequest, featureCategories} from '../src/policy/encoder.ts'
-import {FEATURE_INDEX, FEATURE_VALUES, SCHEMA_VERSION} from '../src/policy/schema.ts'
-import {policyScores, selectTop1, validatePolicy} from '../src/policy/inference.ts'
+import type {ActionDiagnostic, AIDecision, BattleApiInput, BattleRequest, BattleResponse, LegalAction, Player, PolicyAsset, PublicState} from '../src/types'
+import {TEAM_FIXTURES, teamById} from '../src/data/teams'
+import {encodeRequest, featureCategories} from '../src/policy/encoder'
+import {FEATURE_INDEX, FEATURE_VALUES, SCHEMA_VERSION} from '../src/policy/schema'
+import {policyScores, selectTop1, validatePolicy} from '../src/policy/inference'
 let runtimeRequire: NodeRequire | null = null
 
 function getRuntimeRequire(): NodeRequire {

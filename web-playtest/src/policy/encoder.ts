@@ -1,5 +1,5 @@
-import type {BattleRequest, MoveRequest} from '../types.ts'
-import {FEATURE_INDEX, FEATURE_NAMES, FEATURE_VALUES} from './schema.ts'
+import type {BattleRequest, MoveRequest} from '../types'
+import {FEATURE_INDEX, FEATURE_NAMES, FEATURE_VALUES} from './schema'
 
 const STATUS_IDS: Record<string, number> = {'': 0, brn: 1, par: 2, psn: 3, tox: 3, slp: 4, frz: 5}
 const PHYSICAL = new Set(['normal', 'fighting', 'flying', 'poison', 'ground', 'rock', 'bug', 'ghost', 'steel'])

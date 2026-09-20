@@ -1,5 +1,5 @@
-import type {BattleApiInput} from '../src/types.ts'
-import {replayBattle} from '../server/simulator.ts'
+import type {BattleApiInput} from '../src/types'
+import {replayBattle} from '../server/simulator'
 
 const headers = {'cache-control': 'no-store'}
 
