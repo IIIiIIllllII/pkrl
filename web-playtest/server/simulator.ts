@@ -1,4 +1,8 @@
 import {createRequire} from 'node:module'
+import {existsSync, mkdirSync, writeFileSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+import {dirname, join} from 'node:path'
+import {gunzipSync} from 'node:zlib'
 import type {ActionDiagnostic, AIDecision, BattleApiInput, BattleRequest, BattleResponse, LegalAction, Player, PolicyAsset, PublicState} from '../src/types'
 import {TEAM_FIXTURES, teamById} from '../src/data/teams'
 import {encodeRequest, featureCategories} from '../src/policy/encoder'
@@ -7,12 +11,24 @@ import {policyScores, selectTop1, validatePolicy} from '../src/policy/inference'
 import policy10m from '../public/policies/v1-10m.json'
 import policy50m from '../public/policies/v1-50m.json'
 import policy100m from '../public/policies/v1-100m.json'
+import {PINNED_RUNTIME_GZIP_BASE64, PINNED_RUNTIME_ID} from './generated-runtime'
 let runtimeRequire: NodeRequire | null = null
 
 function getRuntimeRequire(): NodeRequire {
-  // Vercel emits api/battle.js as CommonJS, where import.meta.url is not a
-  // reliable base. Root resolution at the generated entrypoint instead.
-  runtimeRequire ||= createRequire(`${process.cwd()}/api/battle.js`)
+  if (runtimeRequire) return runtimeRequire
+  const root = join(tmpdir(), `pkrl-showdown-${PINNED_RUNTIME_ID}`)
+  const marker = join(root, '.complete')
+  if (!existsSync(marker)) {
+    const archive = JSON.parse(gunzipSync(Buffer.from(PINNED_RUNTIME_GZIP_BASE64, 'base64')).toString()) as Record<string, string>
+    for (const [relativePath, contents] of Object.entries(archive)) {
+      if (relativePath.startsWith('/') || relativePath.split('/').includes('..')) throw new Error('invalid embedded simulator path')
+      const destination = join(root, relativePath)
+      mkdirSync(dirname(destination), {recursive: true})
+      writeFileSync(destination, Buffer.from(contents, 'base64'))
+    }
+    writeFileSync(marker, PINNED_RUNTIME_ID)
+  }
+  runtimeRequire = createRequire(join(root, 'entry.cjs'))
   return runtimeRequire
 }
 let BattleStream: any
@@ -24,8 +40,8 @@ function loadPinnedSimulator(): void {
   // Delay filesystem-backed CommonJS loading until the request boundary. This
   // keeps Vercel packaging errors catchable and preserves the exact vendored build.
   const runtime = getRuntimeRequire()
-  ;({BattleStream, getPlayerStreams} = runtime('../vendor/pokemon-showdown/dist/sim/battle-stream'))
-  ;({Dex} = runtime('../vendor/pokemon-showdown/dist/sim/dex'))
+  ;({BattleStream, getPlayerStreams} = runtime('./dist/sim/battle-stream'))
+  ;({Dex} = runtime('./dist/sim/dex'))
 }
 
 function loadPolicies(): Record<string, PolicyAsset> {

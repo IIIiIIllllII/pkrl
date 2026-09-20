@@ -5,9 +5,11 @@
   "type": "module",
   "engines": {"node": ">=22.18.0"},
   "scripts": {
+    "predev": "node scripts/embed-simulator.mjs",
     "dev": "vite",
-    "build:server": "esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs",
-    "build": "esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs && tsc -b && vite build",
+    "build:server": "node scripts/embed-simulator.mjs && esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs",
+    "build": "node scripts/embed-simulator.mjs && esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs && tsc -b && vite build",
+    "pretest": "node scripts/embed-simulator.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:simulator": "node scripts/verify-simulator.mjs",

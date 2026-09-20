@@ -14,6 +14,7 @@ build/
 dist/
 *.tsbuildinfo
 *.log
+/web-playtest/server/generated-runtime.ts
 /artifacts/checkpoints/
 /artifacts/runs/
 artifacts/battles/
