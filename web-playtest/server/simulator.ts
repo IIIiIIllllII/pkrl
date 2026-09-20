@@ -4,6 +4,9 @@ import {TEAM_FIXTURES, teamById} from '../src/data/teams'
 import {encodeRequest, featureCategories} from '../src/policy/encoder'
 import {FEATURE_INDEX, FEATURE_VALUES, SCHEMA_VERSION} from '../src/policy/schema'
 import {policyScores, selectTop1, validatePolicy} from '../src/policy/inference'
+import policy10m from '../public/policies/v1-10m.json'
+import policy50m from '../public/policies/v1-50m.json'
+import policy100m from '../public/policies/v1-100m.json'
 let runtimeRequire: NodeRequire | null = null
 
 function getRuntimeRequire(): NodeRequire {
@@ -25,17 +28,12 @@ function loadPinnedSimulator(): void {
   ;({Dex} = runtime('../vendor/pokemon-showdown/dist/sim/dex'))
 }
 
-let POLICIES: Record<string, PolicyAsset> | null = null
-
 function loadPolicies(): Record<string, PolicyAsset> {
-  if (POLICIES) return POLICIES
-  const runtime = getRuntimeRequire()
-  POLICIES = {
-    'v1-10m': runtime('../public/policies/v1-10m.json') as PolicyAsset,
-    'v1-50m': runtime('../public/policies/v1-50m.json') as PolicyAsset,
-    'v1-100m': runtime('../public/policies/v1-100m.json') as PolicyAsset,
+  return {
+    'v1-10m': policy10m as unknown as PolicyAsset,
+    'v1-50m': policy50m as unknown as PolicyAsset,
+    'v1-100m': policy100m as unknown as PolicyAsset,
   }
-  return POLICIES
 }
 export const SIMULATOR_ID = 'pokemon-showdown@2ddfa0476f8207e12e204b1c69f7c7683b17633c/gen3customgame'
 
