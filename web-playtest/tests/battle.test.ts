@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {replayBattle} from '../server/simulator'
-import battleHandler from '../api/battle'
+import battleHandler from '../api/battle.mjs'
 import type {BattleApiInput} from '../src/types'
 
 const base: BattleApiInput = {battle_id: 'test-battle', seed: [44, 45, 46, 47], policy_id: 'v1-100m', human_team_id: 'rom-npc', ai_team_id: 'rom-npc', human_choices: []}
