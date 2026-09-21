@@ -116,6 +116,16 @@ select, input, textarea { width: 100%; padding: .64rem .7rem; border: 1px solid 
 .teamPreview { position: absolute; z-index: 5; display: flex; gap: 2px; }.ownTeam { right: 29px; bottom: 7px; }
 .teamBall { width: 14px; height: 14px; margin: 0; border-width: 1px; }.teamBall.fainted { filter: grayscale(1); opacity: .35; }.teamBall.active { box-shadow: 0 0 0 2px #f6d04d; }
 
+.partyOverview { padding: 10px 12px 11px; border-bottom: 1px solid #aaa; background: #e9e9e9; }
+.partyOverview h3 { margin: 0 0 7px; color: #555; font-size: 11px; }
+.partyGrid { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 5px; }
+.partyMember { min-width: 0; height: 58px; display: flex; align-items: center; gap: 3px; padding: 4px; overflow: hidden; border: 1px solid #bbb; border-radius: 4px; background: linear-gradient(#fff, #e7e7e7); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+.partyMember.active { border-color: #668f3e; background: linear-gradient(#f7fff0, #dcebcf); box-shadow: inset 0 0 0 1px #a9cc88; }.partyMember.fainted { opacity: .55; filter: grayscale(.75); }
+.partyMember img { flex: 0 0 40px; width: 40px; height: 45px; object-fit: contain; image-rendering: pixelated; }
+.partyInfo { min-width: 0; flex: 1; }.partyInfo strong, .partyInfo > span, .partyInfo small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.partyInfo strong { font-size: 10px; }.partyInfo > span { color: #777; font-size: 8px; text-transform: uppercase; }.partyInfo small { color: #666; font-size: 8px; }
+.miniHp { height: 5px; margin: 3px 0 2px; overflow: hidden; border: 1px solid #666; border-radius: 3px; background: #444; }.miniHp i { display: block; width: var(--hp); height: 100%; background: #50b84f; }
+
 .choicePanel { padding: 13px; background: linear-gradient(#f5f5f5, #ddd); }
 .choicePanel h3 { margin: 0 0 10px; font-size: 13px; }
 .actionGroup { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: start; margin-top: 7px; }
@@ -137,7 +147,7 @@ table { width: 100%; border-collapse: collapse; font-size: 11px; }th,td { paddin
 .finish h2 { margin: 4px 0; font-size: 26px; }.survey { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 18px 0; }.survey label:last-of-type { grid-column: 1/-1; }.survey .primary { align-self: end; }.exports { display: flex; gap: 7px; flex-wrap: wrap; }
 
 @media (max-width: 900px) {
-  .battleGrid { grid-template-columns: 1fr; }.log { min-height: 180px; max-height: 320px; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .battleGrid { grid-template-columns: 1fr; }.log { min-height: 180px; max-height: 320px; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyGrid { grid-template-columns: repeat(3, minmax(0,1fr)); }
 }
 @media (max-width: 640px) {
   .shell { width: 100%; padding: 0; }.appChrome { border-radius: 0; }.brand { font-size: 15px; padding-right: 8px; }.appTab { display: none; }.languageTabs { margin-left: auto; }
@@ -145,5 +155,5 @@ table { width: 100%; border-collapse: collapse; font-size: 11px; }th,td { paddin
   .setup { grid-template-columns: 1fr; }.setup > * { grid-column: 1!important; }.battleGrid { display: block; margin: 0; }.battleHeader { border-left: 0; border-right: 0; }
   .battleStage { height: 340px; }.pokemonCard { width: 190px; }.opponentSide .pokemonCard { left: 9px; top: 12px; }.ownSide .pokemonCard { right: 9px; bottom: 23px; }
   .pokemonSprite.front { right: 20px; top: 78px; width: 125px; height: 125px; }.pokemonSprite.back { left: 20px; bottom: 45px; width: 145px; height: 145px; }.battleStage::before { right: 3px; }.battleStage::after { left: -35px; }
-  .actionGroup { grid-template-columns: 1fr; }.groupLabel { padding: 0; text-align: left; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.flagForm { grid-template-columns: 1fr; }.survey { grid-template-columns: 1fr; }.debug { overflow-x: auto; }
+  .partyGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyMember { height: 54px; }.actionGroup { grid-template-columns: 1fr; }.groupLabel { padding: 0; text-align: left; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.flagForm { grid-template-columns: 1fr; }.survey { grid-template-columns: 1fr; }.debug { overflow-x: auto; }
 }

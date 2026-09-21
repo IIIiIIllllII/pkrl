@@ -121,6 +121,7 @@ export default function App() {
   const ownName = String(own?.details || own?.ident || t.unknown).split(',')[0].replace(/^p\d: /, '')
   const ownHp = hpPercent(own?.condition); const targetHp = target ? [0, 25, 50, 75, 100][target.hpBucket] : 0
   const moves = response.legal_actions.filter(action => action.kind === 'move'); const switches = response.legal_actions.filter(action => action.kind === 'switch')
+  const party = response.request?.side?.pokemon || []
   return <main className="shell battle">
     {appChrome}
     <div className="roomTab battleRoomTab"><span>●</span> {t.battle} {response.battle_id.slice(0, 8)} <button onClick={reset}>×</button></div>
@@ -133,6 +134,13 @@ export default function App() {
           <article className="pokemonSide ownSide">{ownName !== t.unknown && <img className="pokemonSprite back" src={spriteUrl(ownName, true)} alt={battleName(ownName, locale)}/>}<div className="pokemonCard"><span className="playerLabel">{t.you}</span><h2>{battleName(ownName, locale)}</h2><div className="hpTrack"><span className="hpFill" style={hpStyle(ownHp)}/></div><p>{t.hp}: {conditionLabel(own?.condition || '', locale)}</p></div></article>
           <div className="teamPreview ownTeam" aria-label={t.yourTeam}>{response.request?.side?.pokemon.map((mon, index) => <span key={index} className={`teamBall ${mon.condition.includes('fnt') ? 'fainted' : ''} ${mon.active ? 'active' : ''}`} title={battleName(String(mon.details || mon.ident || ''), locale)}/>)}</div>
         </div>
+        <section className="partyOverview" aria-label={t.partyOverview}><h3>{t.partyOverview}</h3><div className="partyGrid">{party.map((mon, index) => {
+          const name = String(mon.details || mon.ident || t.unknown).split(',')[0].replace(/^p\d: /, '')
+          const percent = hpPercent(mon.condition); const fainted = mon.condition.includes('fnt')
+          return <article className={`partyMember ${mon.active ? 'active' : ''} ${fainted ? 'fainted' : ''}`} key={`${name}-${index}`}>
+            <img src={spriteUrl(name)} alt=""/><div className="partyInfo"><strong>{battleName(name, locale)}</strong><span>{fainted ? t.fainted : mon.active ? t.active : t.reserve}</span><div className="miniHp"><i style={hpStyle(percent)}/></div><small>{conditionLabel(mon.condition, locale)}</small></div>
+          </article>
+        })}</div></section>
         {!response.terminal && <div className="choicePanel"><h3>{t.chooseAction}</h3>{moves.length > 0 && <div className="actionGroup"><span className="groupLabel">{t.moves}</span><div className="moveGrid">{moves.map(action => <button className="moveButton" disabled={loading} key={action.choice} onClick={() => act(action.choice)}><span>◆</span>{battleName(action.label, locale)}<small>PP {response.request?.active?.[0]?.moves[action.index]?.pp ?? '—'}</small></button>)}</div></div>}{switches.length > 0 && <div className="actionGroup switchGroup"><span className="groupLabel">{t.switchPokemon}</span><div className="switchGrid">{switches.map(action => <button disabled={loading} key={action.choice} onClick={() => act(action.choice)}><span>●</span>{battleName(action.label, locale)}</button>)}</div></div>}</div>}
         {loading && <p className="working">{t.replaying}</p>}
         {error && <p className="error">{error}</p>}
