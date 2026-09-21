@@ -100,7 +100,9 @@ function safeRequest(raw: BattleRequest, visible: PublicState): BattleRequest {
     })})) || null,
     side: raw.side ? {id: raw.side.id, name: raw.side.name, pokemon: raw.side.pokemon.map(mon => ({
       ident: mon.ident, details: mon.details, condition: mon.condition, active: Boolean(mon.active), stats: mon.stats,
-      moves: mon.moves || [], types: Dex.species.get(String(mon.details || '').split(',')[0]).types,
+      moves: (mon.moves || []).map((move: string) => Dex.moves.get(move).name || move),
+      item: mon.item ? Dex.items.get(mon.item).name || mon.item : '',
+      types: Dex.species.get(String(mon.details || '').split(',')[0]).types,
     }))} : undefined,
     public: structuredClone(visible),
   }

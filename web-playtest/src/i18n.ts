@@ -9,7 +9,7 @@ export const UI = {
     chooseAction: 'Choose an action', replaying: 'Replaying the deterministic battle…', wrongDecision: '🚩 AI decision looked wrong', whatWrong: 'What looked wrong?', optionalNote: 'Optional note', shortNote: 'Short note', saveFlag: 'Save flag', battleLog: 'Battle log',
     developerView: 'Developer view', policy: 'policy', seed: 'seed', margin: 'margin', mask: 'mask', action: 'Action', legal: 'Legal', score: 'Score', role: 'Role', effect: 'Effect', featureIds: 'Feature IDs', yes: 'Yes', no: 'No',
     result: 'Result', youWon: 'You won', aiWon: 'V1 LUT won', tie: 'Tie', policyRevealed: 'Policy revealed', strengthQuestion: 'How strong did the AI feel?', choose: 'Choose…', irrationalQuestion: 'Any obviously irrational action?', cheatingQuestion: 'Did anything feel like cheating?', optionalComment: 'Optional comment', saveFeedback: 'Save feedback',
-    downloadLog: 'Download playtest log', copyJson: 'Copy JSON', downloadAll: 'Download all local battles', language: 'Language', battleRoom: 'Battle room', moves: 'Moves', switchPokemon: 'Switch Pokémon', research: 'Research', partyOverview: 'Your party', active: 'Active', reserve: 'Reserve',
+    downloadLog: 'Download playtest log', copyJson: 'Copy JSON', downloadAll: 'Download all local battles', language: 'Language', battleRoom: 'Battle room', moves: 'Moves', switchPokemon: 'Switch Pokémon', research: 'Research', partyOverview: 'Your party', active: 'Active', reserve: 'Reserve', partySets: 'Party moves & held items', heldItem: 'Held item', noItem: 'No held item',
   },
   ko: {
     researchTool: '3세대 연구 도구', title: '플레이어 vs. V1 LUT', intro: '버전이 고정된 Pokémon Showdown으로 실제 배틀을 진행하고, 이상한 판단을 표시한 뒤 데이터를 내보내세요.',
@@ -19,7 +19,7 @@ export const UI = {
     chooseAction: '행동을 선택하세요', replaying: '결정론적 배틀을 재현하는 중…', wrongDecision: '🚩 AI의 판단이 이상해 보임', whatWrong: '어떤 점이 이상했나요?', optionalNote: '선택 메모', shortNote: '짧은 메모', saveFlag: '표시 저장', battleLog: '배틀 로그',
     developerView: '개발자 화면', policy: '정책', seed: '시드', margin: '점수 차', mask: '마스크', action: '행동', legal: '사용 가능', score: '점수', role: '역할', effect: '효과', featureIds: '특징 ID', yes: '예', no: '아니요',
     result: '결과', youWon: '승리했습니다', aiWon: 'V1 LUT가 승리했습니다', tie: '무승부', policyRevealed: '공개된 정책', strengthQuestion: 'AI가 얼마나 강하게 느껴졌나요?', choose: '선택…', irrationalQuestion: '명백히 비합리적인 행동이 있었나요?', cheatingQuestion: 'AI가 부정행위를 한다고 느낀 점이 있었나요?', optionalComment: '선택 의견', saveFeedback: '의견 저장',
-    downloadLog: '플레이테스트 기록 다운로드', copyJson: 'JSON 복사', downloadAll: '로컬 배틀 전체 다운로드', language: '언어', battleRoom: '배틀 룸', moves: '기술', switchPokemon: '포켓몬 교체', research: '연구', partyOverview: '내 파티', active: '배틀 중', reserve: '대기',
+    downloadLog: '플레이테스트 기록 다운로드', copyJson: 'JSON 복사', downloadAll: '로컬 배틀 전체 다운로드', language: '언어', battleRoom: '배틀 룸', moves: '기술', switchPokemon: '포켓몬 교체', research: '연구', partyOverview: '내 파티', active: '배틀 중', reserve: '대기', partySets: '파티 기술 및 지닌물건', heldItem: '지닌물건', noItem: '지닌물건 없음',
   },
 } as const
 
@@ -67,6 +67,10 @@ export const MOVE_KO: Record<string, string> = {
   Flamethrower: '화염방사', Amnesia: '망각술', Bite: '물기', 'Confuse Ray': '이상한빛', Tackle: '몸통박치기',
 }
 
+export const ITEM_KO: Record<string, string> = {
+  Leftovers: '먹다남은음식', 'Choice Band': '구애머리띠', 'Lum Berry': '리샘열매',
+}
+
 const STATUS_KO: Record<string, string> = {brn: '화상', par: '마비', psn: '독', tox: '맹독', slp: '잠듦', frz: '얼음', fnt: '기절', none: '없음'}
 const DEBUG_KO: Record<string, string> = {
   damage: '공격', status: '변화기', setup: '랭크업', debuff: '능력 저하', recovery: '회복', protect: '방어', weather: '날씨', field: '필드', phaze: '강제 교체', pivot: '교체기', self_ko: '자폭', fixed: '고정 대미지', utility: '보조',
@@ -78,6 +82,7 @@ export function teamLabel(id: string, fallback: string, locale: Locale): string 
 export function categoryLabel(category: string, locale: Locale): string { return label(CATEGORY_LABELS[category] || [category, category], locale) }
 export function statusLabel(status: string, locale: Locale): string { return locale === 'ko' ? STATUS_KO[status] || status : status }
 export function debugLabel(value: string | null, locale: Locale): string | null { return locale === 'ko' && value ? DEBUG_KO[value] || value : value }
+export function itemName(value: string, locale: Locale): string { return locale === 'ko' ? ITEM_KO[value] || value : value }
 
 export function battleName(value: string, locale: Locale): string {
   if (locale === 'en') return value

@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState, type CSSProperties} from 'react'
 import {TEAM_FIXTURES} from './data/teams'
 import {POLICY_IDS} from './policy/assets'
-import {battleName, categoryLabel, conditionLabel, debugLabel, FLAG_LABELS, label, statusLabel, STRENGTH_LABELS, teamLabel, UI, type Locale} from './i18n'
+import {battleName, categoryLabel, conditionLabel, debugLabel, FLAG_LABELS, itemName, label, statusLabel, STRENGTH_LABELS, teamLabel, UI, type Locale} from './i18n'
 import {clearActive, copyJson, createResearchLog, downloadJson, finalizeLog, flagTurn, loadActive, loadArchive, saveActive, saveToArchive} from './research/logging'
 import type {BattleApiInput, BattleFeedback, BattleResponse, ResearchLog} from './types'
 
@@ -149,6 +149,14 @@ export default function App() {
       </section>
       <aside className="panel log"><h2>{t.battleLog}</h2>{visibleLog.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}</aside>
     </div>
+    <section className="panel partySets"><h2>{t.partySets}</h2><div className="setGrid">{party.map((mon, index) => {
+      const name = String(mon.details || mon.ident || t.unknown).split(',')[0].replace(/^p\d: /, '')
+      return <article className={`setCard ${mon.active ? 'active' : ''} ${mon.condition.includes('fnt') ? 'fainted' : ''}`} key={`set-${name}-${index}`}>
+        <header><img src={spriteUrl(name)} alt=""/><div><h3>{battleName(name, locale)}</h3><span>{mon.active ? t.active : mon.condition.includes('fnt') ? t.fainted : t.reserve}</span></div></header>
+        <p className="heldItem"><b>{t.heldItem}:</b> {mon.item ? itemName(mon.item, locale) : t.noItem}</p>
+        <ul>{(mon.moves || []).map(move => <li key={move}>{battleName(move, locale)}</li>)}</ul>
+      </article>
+    })}</div></section>
     {session.debug && <section className="panel debug"><h2>{t.developerView}</h2><div className="debugMeta"><code>{t.policy} {response.policy_id}</code><code>{t.seed} {response.seed.join(',')}</code><code>{t.margin} {lastDecision?.margin?.toFixed(4) ?? '—'}</code><code>{t.mask} {lastDecision?.legal_action_mask.map(Number).join('') || '—'}</code></div>{lastDecision && <table><thead><tr><th>{t.action}</th><th>{t.legal}</th><th>{t.score}</th><th>{t.role}</th><th>{t.effect}</th><th>{t.featureIds}</th></tr></thead><tbody>{lastDecision.candidates.map(action => <tr className={action.index === lastDecision.chosen_action.index ? 'chosen' : ''} key={action.index}><td>{battleName(action.label, locale)}</td><td>{action.legal ? t.yes : t.no}</td><td>{action.score?.toFixed(5) ?? '—'}</td><td>{debugLabel(action.move_role, locale) || '—'}</td><td>{debugLabel(action.effectiveness, locale) || '—'}</td><td><code>{action.feature_ids?.join(', ') || '—'}</code></td></tr>)}</tbody></table>}</section>}
     {response.terminal && <section className="panel finish"><p className="eyebrow">{t.result}</p><h2>{response.winner === 'Human' ? t.youWon : response.winner === 'V1 LUT' ? t.aiWon : t.tie}</h2><p>{t.policyRevealed}: <strong>{response.policy_id}</strong></p>
       <div className="survey"><label>{t.strengthQuestion}<select value={feedback.strength || ''} onChange={event => setFeedback({...feedback, strength: event.target.value})}><option value="">{t.choose}</option>{Object.keys(STRENGTH_LABELS).map(value => <option key={value} value={value}>{label(STRENGTH_LABELS[value], locale)}</option>)}</select></label>

@@ -394,7 +394,8 @@ function safeRequest(raw, visible) {
       condition: mon.condition,
       active: Boolean(mon.active),
       stats: mon.stats,
-      moves: mon.moves || [],
+      moves: (mon.moves || []).map((move) => Dex.moves.get(move).name || move),
+      item: mon.item ? Dex.items.get(mon.item).name || mon.item : "",
       types: Dex.species.get(String(mon.details || "").split(",")[0]).types
     })) } : void 0,
     public: structuredClone(visible)

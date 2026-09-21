@@ -32,10 +32,12 @@ describe('stateless pinned simulator', () => {
   })
 
   it('does not serialize an unrevealed opponent party member or hidden ability', async () => {
-    const human = [{species: 'Swampert', level: 50, moves: ['Surf']}]
-    const ai = [{species: 'Pidgey', level: 50, ability: 'Keen Eye', moves: ['Tackle']}, {species: 'Mewtwo', level: 50, ability: 'Pressure', moves: ['Psychic']}]
+    const human = [{species: 'Swampert', level: 50, item: 'Leftovers', moves: ['Surf']}]
+    const ai = [{species: 'Pidgey', level: 50, ability: 'Keen Eye', item: 'Choice Band', moves: ['Tackle']}, {species: 'Mewtwo', level: 50, ability: 'Pressure', item: 'Lum Berry', moves: ['Psychic']}]
     const result = await replayBattle({...base, battle_id: 'privacy'}, {human, ai}); const serialized = JSON.stringify(result).toLowerCase()
+    expect(result.request?.side?.pokemon[0]).toMatchObject({item: 'Leftovers', moves: ['Surf']})
     expect(serialized).toContain('pidgey'); expect(serialized).not.toContain('mewtwo'); expect(serialized).not.toContain('pressure')
+    expect(serialized).not.toContain('choice band'); expect(serialized).not.toContain('lum berry')
     expect(result.ai_decisions.every(decision => !('developer_hidden_state' in decision))).toBe(true)
   })
 })

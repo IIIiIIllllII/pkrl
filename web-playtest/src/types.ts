@@ -31,6 +31,7 @@ export interface PokemonRequest {
   active?: boolean
   stats?: {spe?: number}
   moves?: string[]
+  item?: string
   types?: string[]
 }
 

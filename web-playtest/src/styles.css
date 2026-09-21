@@ -142,12 +142,17 @@ select, input, textarea { width: 100%; padding: .64rem .7rem; border: 1px solid 
 .log { min-height: 390px; max-height: 650px; overflow: auto; padding: 0; background: #f7f7f7; }
 .log h2 { position: sticky; top: 0; z-index: 2; margin: 0; padding: 9px 11px; border-bottom: 1px solid #aaa; background: linear-gradient(#fff, #ddd); font-size: 13px; }
 .log p { margin: 0; padding: 7px 11px; border-bottom: 1px solid #e1e1e1; color: #444; font-size: 12px; line-height: 1.32; }.log p:nth-child(odd) { background: #f0f0f0; }
+.partySets { margin-top: 8px; padding: 13px; background: #eee; }.partySets > h2 { margin: 0 0 10px; font-size: 14px; }
+.setGrid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+.setCard { min-width: 0; padding: 9px; border: 1px solid #aaa; border-radius: 4px; background: linear-gradient(#fff, #e8e8e8); box-shadow: 0 1px 2px rgba(0,0,0,.1); }.setCard.active { border-color: #648d40; box-shadow: inset 0 0 0 1px #a8c88d; }.setCard.fainted { opacity: .58; filter: grayscale(.7); }
+.setCard header { display: flex; align-items: center; gap: 7px; border-bottom: 1px solid #ccc; padding-bottom: 6px; }.setCard header img { width: 44px; height: 44px; object-fit: contain; image-rendering: pixelated; }.setCard h3 { margin: 0; font-size: 13px; }.setCard header span { color: #777; font-size: 9px; text-transform: uppercase; }
+.heldItem { min-height: 16px; margin: 7px 0; color: #555; font-size: 10px; }.setCard ul { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0; padding: 0; list-style: none; }.setCard li { overflow: hidden; padding: 4px 5px; border: 1px solid #ccc; border-radius: 3px; background: #f7f7f7; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .debug,.finish { margin-top: 8px; padding: 16px; }.debug h2 { margin-top: 0; font-size: 16px; }.debugMeta { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }.debugMeta code { padding: 5px 7px; border: 1px solid #ccc; border-radius: 3px; background: #eee; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; }th,td { padding: 7px; border: 1px solid #ccc; text-align: left; }th { background: #e5e5e5; }tr.chosen { background: #dceaf7; }
 .finish h2 { margin: 4px 0; font-size: 26px; }.survey { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 18px 0; }.survey label:last-of-type { grid-column: 1/-1; }.survey .primary { align-self: end; }.exports { display: flex; gap: 7px; flex-wrap: wrap; }
 
 @media (max-width: 900px) {
-  .battleGrid { grid-template-columns: 1fr; }.log { min-height: 180px; max-height: 320px; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyGrid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .battleGrid { grid-template-columns: 1fr; }.log { min-height: 180px; max-height: 320px; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyGrid { grid-template-columns: repeat(3, minmax(0,1fr)); }.setGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 @media (max-width: 640px) {
   .shell { width: 100%; padding: 0; }.appChrome { border-radius: 0; }.brand { font-size: 15px; padding-right: 8px; }.appTab { display: none; }.languageTabs { margin-left: auto; }
@@ -155,5 +160,5 @@ table { width: 100%; border-collapse: collapse; font-size: 11px; }th,td { paddin
   .setup { grid-template-columns: 1fr; }.setup > * { grid-column: 1!important; }.battleGrid { display: block; margin: 0; }.battleHeader { border-left: 0; border-right: 0; }
   .battleStage { height: 340px; }.pokemonCard { width: 190px; }.opponentSide .pokemonCard { left: 9px; top: 12px; }.ownSide .pokemonCard { right: 9px; bottom: 23px; }
   .pokemonSprite.front { right: 20px; top: 78px; width: 125px; height: 125px; }.pokemonSprite.back { left: 20px; bottom: 45px; width: 145px; height: 145px; }.battleStage::before { right: 3px; }.battleStage::after { left: -35px; }
-  .partyGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyMember { height: 54px; }.actionGroup { grid-template-columns: 1fr; }.groupLabel { padding: 0; text-align: left; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.flagForm { grid-template-columns: 1fr; }.survey { grid-template-columns: 1fr; }.debug { overflow-x: auto; }
+  .partyGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyMember { height: 54px; }.setGrid { grid-template-columns: 1fr; }.actionGroup { grid-template-columns: 1fr; }.groupLabel { padding: 0; text-align: left; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.flagForm { grid-template-columns: 1fr; }.survey { grid-template-columns: 1fr; }.debug { overflow-x: auto; }
 }

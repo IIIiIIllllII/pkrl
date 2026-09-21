@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {TEAM_FIXTURES} from '../src/data/teams'
-import {battleName, MOVE_KO, POKEMON_KO} from '../src/i18n'
+import {battleName, ITEM_KO, MOVE_KO, POKEMON_KO} from '../src/i18n'
 
 describe('Korean presentation localization', () => {
   it('uses official Korean names for every fixture Pokémon and move', () => {
@@ -8,6 +8,7 @@ describe('Korean presentation localization', () => {
       const species = String(member.species)
       expect(POKEMON_KO[species], `missing Pokémon translation: ${species}`).toBeTruthy()
       for (const move of member.moves as string[]) expect(MOVE_KO[move], `missing move translation: ${move}`).toBeTruthy()
+      if (member.item) expect(ITEM_KO[String(member.item)], `missing item translation: ${member.item}`).toBeTruthy()
     }
   })
 
