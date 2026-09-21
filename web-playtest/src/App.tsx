@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useState, type CSSProperties} from 'react'
 import {TEAM_FIXTURES} from './data/teams'
 import {POLICY_IDS} from './policy/assets'
 import {battleName, categoryLabel, conditionLabel, debugLabel, FLAG_LABELS, label, statusLabel, STRENGTH_LABELS, teamLabel, UI, type Locale} from './i18n'
@@ -12,6 +12,17 @@ function randomSeed(): [number, number, number, number] {
   const values = new Uint16Array(4); crypto.getRandomValues(values); return [...values] as [number, number, number, number]
 }
 function randomPolicy(): string { const bytes = new Uint8Array(1); crypto.getRandomValues(bytes); return POLICY_IDS[bytes[0] % POLICY_IDS.length] }
+
+function spriteUrl(species: string, back = false): string {
+  const id = species.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  return `https://play.pokemonshowdown.com/sprites/${back ? 'gen3-back' : 'gen3'}/${id}.png`
+}
+function hpPercent(condition = ''): number {
+  if (condition.includes('fnt')) return 0
+  const match = condition.match(/(\d+)\/(\d+)/)
+  return match ? Math.round(Number(match[1]) / Number(match[2]) * 100) : 100
+}
+function hpStyle(percent: number): CSSProperties { return {'--hp': `${Math.max(0, Math.min(100, percent))}%`} as CSSProperties }
 
 async function battleRequest(input: BattleApiInput): Promise<BattleResponse> {
   const response = await fetch('/api/battle', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(input)})
@@ -49,10 +60,10 @@ export default function App() {
   const visibleLog = useMemo(() => (session?.response.public_log || []).map(line => readableLine(line, locale)).filter(Boolean).slice(-24), [session, locale])
   useEffect(() => { localStorage.setItem('gen3-lut-locale', locale); document.documentElement.lang = locale }, [locale])
 
-  const languageTabs = <nav className="languageTabs" aria-label={t.language}>
-    <button className={locale === 'en' ? 'active' : ''} aria-pressed={locale === 'en'} onClick={() => setLocale('en')}>English</button>
+  const appChrome = <div className="appChrome"><div className="brand"><span className="brandBall"/>PKRL <strong>Showdown</strong></div><div className="appTabs"><span className="appTab active">{t.battleRoom}</span><span className="appTab">{t.research}</span></div><nav className="languageTabs" aria-label={t.language}>
+    <button className={locale === 'en' ? 'active' : ''} aria-pressed={locale === 'en'} onClick={() => setLocale('en')}>EN</button>
     <button className={locale === 'ko' ? 'active' : ''} aria-pressed={locale === 'ko'} onClick={() => setLocale('ko')}>한국어</button>
-  </nav>
+  </nav></div>
 
   async function startBattle() {
     setLoading(true); setError('')
@@ -87,9 +98,11 @@ export default function App() {
   function reset() { setSession(null); clearActive(); setFeedback({}); setFlagOpen(false) }
 
   if (!session) return <main className="shell">
-    {languageTabs}
-    <header><p className="eyebrow">{t.researchTool}</p><h1>{t.title}</h1><p>{t.intro}</p></header>
-    <section className="panel setup">
+    {appChrome}
+    <div className="roomTab"><span>●</span> {t.title}</div>
+    <section className="lobbyWindow">
+      <header className="lobbyHero"><div className="heroBall"><span/></div><div><p className="eyebrow">{t.researchTool}</p><h1>{t.title}</h1><p>{t.intro}</p></div></header>
+      <section className="panel setup">
       <label>{t.yourTeam}<select value={humanTeam} onChange={event => setHumanTeam(event.target.value)}>{TEAM_FIXTURES.map(team => <option key={team.id} value={team.id}>{teamLabel(team.id, team.name, locale)} · {categoryLabel(team.category, locale)}</option>)}</select></label>
       <label>{t.aiTeam}<select value={aiTeam} onChange={event => setAiTeam(event.target.value)}>{TEAM_FIXTURES.map(team => <option key={team.id} value={team.id}>{teamLabel(team.id, team.name, locale)} · {categoryLabel(team.category, locale)}</option>)}</select></label>
       <label className="check"><input type="checkbox" checked={blind} onChange={event => setBlind(event.target.checked)}/> {t.blindTest}</label>
@@ -98,24 +111,29 @@ export default function App() {
       <button className="primary" disabled={loading} onClick={startBattle}>{loading ? t.starting : t.startBattle}</button>
       {archiveCount > 0 && <button onClick={() => downloadJson('gen3-lut-playtest-session.json', {exported_at: new Date().toISOString(), battles: loadArchive()})}>{t.downloadArchive} ({archiveCount})</button>}
       {error && <p className="error">{error}</p>}
+      </section>
+      <p className="note">{t.simulator}: Pokémon Showdown ({t.pinned}) 2ddfa047 · {t.format}: gen3customgame · {t.schema}: gen3-lut-v1</p>
     </section>
-    <p className="note">{t.simulator}: Pokémon Showdown ({t.pinned}) 2ddfa047 · {t.format}: gen3customgame · {t.schema}: gen3-lut-v1</p>
   </main>
 
   const {response, log} = session; const own = response.request?.side?.pokemon.find(mon => mon.active); const target = response.request?.public?.target
   const lastDecision = response.ai_decisions.at(-1)
   const ownName = String(own?.details || own?.ident || t.unknown).split(',')[0].replace(/^p\d: /, '')
+  const ownHp = hpPercent(own?.condition); const targetHp = target ? [0, 25, 50, 75, 100][target.hpBucket] : 0
+  const moves = response.legal_actions.filter(action => action.kind === 'move'); const switches = response.legal_actions.filter(action => action.kind === 'switch')
   return <main className="shell battle">
-    {languageTabs}
-    <header className="battleHeader"><div><p className="eyebrow">{t.battle} {response.battle_id.slice(0, 8)}</p><h1>{response.terminal ? t.battleComplete : locale === 'ko' ? `${response.turn}턴` : `${t.turn} ${response.turn}`}</h1></div><button onClick={reset}>{t.newBattle}</button></header>
+    {appChrome}
+    <div className="roomTab battleRoomTab"><span>●</span> {t.battle} {response.battle_id.slice(0, 8)} <button onClick={reset}>×</button></div>
+    <header className="battleHeader"><div><p className="eyebrow">[Gen 3] Custom Game</p><h1>{response.terminal ? t.battleComplete : locale === 'ko' ? `${response.turn}턴` : `${t.turn} ${response.turn}`}</h1></div><button onClick={reset}>{t.newBattle}</button></header>
     <div className="battleGrid">
       <section className="panel field">
-        <div className="combatants">
-          <article><span>{t.opponent}</span><h2>{battleName(target?.species || t.unknown, locale)}</h2><p>{t.hpBucket}: {target ? [t.fainted, '≤25%', '≤50%', '≤75%', '>75%'][target.hpBucket] : '—'}</p><p>{t.status}: {target?.status ? statusLabel(target.status, locale) : t.none}</p></article>
-          <div className="versus">VS</div>
-          <article><span>{t.you}</span><h2>{battleName(ownName, locale)}</h2><p>{t.hp}: {conditionLabel(own?.condition || '', locale)}</p></article>
+        <div className="battleStage">
+          <article className="pokemonSide opponentSide"><div className="pokemonCard"><span className="playerLabel">{t.opponent}</span><h2>{battleName(target?.species || t.unknown, locale)}</h2><div className="hpTrack"><span className="hpFill" style={hpStyle(targetHp)}/></div><p>{t.hpBucket}: {target ? [t.fainted, '≤25%', '≤50%', '≤75%', '>75%'][target.hpBucket] : '—'} {target?.status && <b className={`statusTag ${target.status}`}>{statusLabel(target.status, locale)}</b>}</p></div>{target?.species && <img className="pokemonSprite front" src={spriteUrl(target.species)} alt={battleName(target.species, locale)}/>}</article>
+          <div className="battleCenter"><span>{locale === 'ko' ? `${response.turn}턴` : `Turn ${response.turn}`}</span></div>
+          <article className="pokemonSide ownSide">{ownName !== t.unknown && <img className="pokemonSprite back" src={spriteUrl(ownName, true)} alt={battleName(ownName, locale)}/>}<div className="pokemonCard"><span className="playerLabel">{t.you}</span><h2>{battleName(ownName, locale)}</h2><div className="hpTrack"><span className="hpFill" style={hpStyle(ownHp)}/></div><p>{t.hp}: {conditionLabel(own?.condition || '', locale)}</p></div></article>
+          <div className="teamPreview ownTeam" aria-label={t.yourTeam}>{response.request?.side?.pokemon.map((mon, index) => <span key={index} className={`teamBall ${mon.condition.includes('fnt') ? 'fainted' : ''} ${mon.active ? 'active' : ''}`} title={battleName(String(mon.details || mon.ident || ''), locale)}/>)}</div>
         </div>
-        {!response.terminal && <div className="actions"><h3>{t.chooseAction}</h3>{response.legal_actions.map(action => <button disabled={loading} key={action.choice} onClick={() => act(action.choice)}><span>{action.kind === 'switch' ? '↪' : '◆'}</span>{battleName(action.label, locale)}</button>)}</div>}
+        {!response.terminal && <div className="choicePanel"><h3>{t.chooseAction}</h3>{moves.length > 0 && <div className="actionGroup"><span className="groupLabel">{t.moves}</span><div className="moveGrid">{moves.map(action => <button className="moveButton" disabled={loading} key={action.choice} onClick={() => act(action.choice)}><span>◆</span>{battleName(action.label, locale)}<small>PP {response.request?.active?.[0]?.moves[action.index]?.pp ?? '—'}</small></button>)}</div></div>}{switches.length > 0 && <div className="actionGroup switchGroup"><span className="groupLabel">{t.switchPokemon}</span><div className="switchGrid">{switches.map(action => <button disabled={loading} key={action.choice} onClick={() => act(action.choice)}><span>●</span>{battleName(action.label, locale)}</button>)}</div></div>}</div>}
         {loading && <p className="working">{t.replaying}</p>}
         {error && <p className="error">{error}</p>}
         {lastDecision && <div className="flagArea"><button className="flag" onClick={() => setFlagOpen(value => !value)}>{t.wrongDecision}</button>
