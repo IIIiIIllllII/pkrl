@@ -31,6 +31,19 @@ describe('stateless pinned simulator', () => {
     expect(end.ai_decisions[0].legal_action_mask[end.ai_decisions[0].chosen_action.index]).toBe(true)
   })
 
+  it('treats any type immunity as 0x for dual-type targets', async () => {
+    const human = [{species: 'Skarmory', level: 50, moves: ['Protect']}]
+    const ai = [{species: 'Swampert', level: 50, moves: ['Earthquake', 'Surf']}]
+    const input = {...base, battle_id: 'dual-type-immunity'}
+    const start = await replayBattle(input, {human, ai})
+    const result = await replayBattle({...input, human_choices: [start.legal_actions[0].choice]}, {human, ai})
+    const earthquake = result.ai_decisions[0].candidates.find(action => action.label === 'Earthquake')
+    const surf = result.ai_decisions[0].candidates.find(action => action.label === 'Surf')
+    expect(earthquake?.feature_categories?.effectiveness).toBe('immune')
+    expect(surf?.feature_categories?.effectiveness).toBe('neutral')
+    expect(result.ai_decisions[0].chosen_action.label).toBe('Surf')
+  })
+
   it('does not serialize an unrevealed opponent party member or hidden ability', async () => {
     const human = [{species: 'Swampert', level: 50, item: 'Leftovers', moves: ['Surf']}]
     const ai = [{species: 'Pidgey', level: 50, ability: 'Keen Eye', item: 'Choice Band', moves: ['Tackle']}, {species: 'Mewtwo', level: 50, ability: 'Pressure', item: 'Lum Berry', moves: ['Psychic']}]

@@ -88,7 +88,10 @@ function safeRequest(raw: BattleRequest, visible: PublicState): BattleRequest {
       const data = Dex.moves.get(move.id || move.move)
       let effectivenessBucket = 3
       if (visible.target?.types?.length) {
-        const immune = visible.target.types.every(type => !Dex.getImmunity(data.type, type))
+        // A single immune defending type makes the whole attack ineffective.
+        // Using `every` here incorrectly scored Ground vs Flying/Steel as 2x
+        // because Flying's immunity was discarded and Steel's weakness remained.
+        const immune = visible.target.types.some(type => !Dex.getImmunity(data.type, type))
         if (immune) effectivenessBucket = 0
         else {
           const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(data.type, type), 0)

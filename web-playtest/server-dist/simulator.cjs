@@ -368,7 +368,7 @@ function safeRequest(raw, visible) {
       const data = Dex.moves.get(move.id || move.move);
       let effectivenessBucket = 3;
       if (visible.target?.types?.length) {
-        const immune = visible.target.types.every((type) => !Dex.getImmunity(data.type, type));
+        const immune = visible.target.types.some((type) => !Dex.getImmunity(data.type, type));
         if (immune) effectivenessBucket = 0;
         else {
           const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(data.type, type), 0);
