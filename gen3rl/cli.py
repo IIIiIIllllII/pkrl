@@ -3,6 +3,10 @@ import argparse, json, os, shutil, subprocess, sys, tarfile, tempfile, urllib.re
 from pathlib import Path
 import yaml
 ROOT=Path(__file__).resolve().parents[1]
+UPSTREAMS=(
+    ("pokemon-showdown","https://github.com/smogon/pokemon-showdown.git","2ddfa0476f8207e12e204b1c69f7c7683b17633c"),
+    ("pokeemerald","https://github.com/pret/pokeemerald.git","5eff78649e7170a877b961ef0b3da13b81a16038"),
+)
 
 def schema_artifacts():
     from gen3rl.features.schema import SCHEMA_VERSION
@@ -11,14 +15,35 @@ def schema_artifacts():
 def run(cmd,cwd=ROOT,check=True): return subprocess.run(cmd,cwd=cwd,text=True,capture_output=True,check=check)
 def load_config(path): return yaml.safe_load(Path(path).read_text())
 
+def install_pokeemerald_integration(checkout: Path):
+    patch=ROOT/"integration/pokeemerald/gen3rl.patch"
+    reverse=run(["git","apply","--reverse","--check",str(patch)],checkout,check=False)
+    if reverse.returncode==0:
+        return "already applied"
+    applicable=run(["git","apply","--check",str(patch)],checkout,check=False)
+    if applicable.returncode:
+        detail=(applicable.stderr or applicable.stdout).strip()
+        raise RuntimeError(f"pokeemerald integration patch does not apply: {detail}")
+    run(["git","apply",str(patch)],checkout)
+    return "applied"
+
 def bootstrap(_):
     for p in ("artifacts/checkpoints","artifacts/generated","artifacts/teams","artifacts/coverage","docs","integration/pokeemerald"):
         (ROOT/p).mkdir(parents=True,exist_ok=True)
     third=ROOT/"third_party"; third.mkdir(exist_ok=True)
     if not (ROOT/".git").exists(): run(["git","init"])
-    repos=(("pokemon-showdown","https://github.com/smogon/pokemon-showdown.git"),("pokeemerald","https://github.com/pret/pokeemerald.git"))
-    for name,url in repos:
+    revisions={}
+    for name,url,revision in UPSTREAMS:
         if not (third/name/".git").exists(): run(["git","clone",url,str(third/name)])
+        checkout=third/name
+        current=run(["git","rev-parse","HEAD"],checkout).stdout.strip()
+        if current!=revision:
+            dirty=run(["git","status","--porcelain"],checkout).stdout.strip()
+            if dirty:
+                raise RuntimeError(f"{name} has local changes and is not at pinned revision {revision}")
+            run(["git","checkout","--detach",revision],checkout)
+        revisions[name]=revision
+    patch_status=install_pokeemerald_integration(third/"pokeemerald")
     npm=shutil.which("npm")
     local_npm=third/"npm/bin/npm-cli.js"
     if not npm and not local_npm.exists():
@@ -32,8 +57,8 @@ def bootstrap(_):
         run(npm_cmd+["ci","--omit=optional"],third/"pokemon-showdown"); run(["node","build"],third/"pokemon-showdown")
     tsc=third/"pokemon-showdown/node_modules/typescript/bin/tsc"
     if not (ROOT/"showdown_bridge/dist/worker.js").exists(): run(["node",str(tsc),"-p","showdown_bridge/tsconfig.json"])
-    status={"showdown":run(["git","rev-parse","HEAD"],third/"pokemon-showdown").stdout.strip(),
-            "pokeemerald":run(["git","rev-parse","HEAD"],third/"pokeemerald").stdout.strip(),
+    status={"showdown":revisions["pokemon-showdown"],
+            "pokeemerald":revisions["pokeemerald"],"pokeemerald_integration":patch_status,
             "bridge_built":(ROOT/"showdown_bridge/dist/worker.js").exists()}
     print(json.dumps(status,indent=2))
 

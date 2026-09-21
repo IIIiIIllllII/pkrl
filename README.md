@@ -24,6 +24,9 @@ uv run python -m gen3rl.cli doctor
 uv run python -m gen3rl.cli smoke
 ```
 
+`bootstrap` checks out the pinned upstream revisions and idempotently applies
+the tracked pokeemerald integration patch required by the test suite.
+
 Training, evaluation, export, and parity:
 
 ```bash
