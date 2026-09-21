@@ -85,20 +85,25 @@ function safeRequest(raw: BattleRequest, visible: PublicState): BattleRequest {
   const result: BattleRequest = {
     rqid: raw.rqid, wait: Boolean(raw.wait), forceSwitch: raw.forceSwitch || null,
     active: raw.active?.map(active => ({...active, moves: (active.moves || []).map(move => {
-      const data = Dex.moves.get(move.id || move.move)
+      // Move requests collapse typed Hidden Power to id `hiddenpower`, while
+      // the display name retains its real type and Gen 3 base power.
+      const hiddenPower = /^Hidden Power ([A-Za-z]+)(?: (\d+))?$/.exec(move.move || '')
+      const data = Dex.moves.get(hiddenPower ? move.move : move.id || move.move)
+      const moveType = hiddenPower?.[1] || data.type
+      const basePower = hiddenPower?.[2] ? Number(hiddenPower[2]) : data.basePower
       let effectivenessBucket = 3
       if (visible.target?.types?.length) {
         // A single immune defending type makes the whole attack ineffective.
         // Using `every` here incorrectly scored Ground vs Flying/Steel as 2x
         // because Flying's immunity was discarded and Steel's weakness remained.
-        const immune = visible.target.types.some(type => !Dex.getImmunity(data.type, type))
+        const immune = visible.target.types.some(type => !Dex.getImmunity(moveType, type))
         if (immune) effectivenessBucket = 0
         else {
-          const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(data.type, type), 0)
+          const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(moveType, type), 0)
           effectivenessBucket = exponent <= -2 ? 1 : exponent === -1 ? 2 : exponent === 0 ? 3 : exponent === 1 ? 4 : 5
         }
       }
-      return {...move, id: data.id, type: data.type, basePower: data.basePower, accuracy: data.accuracy,
+      return {...move, id: data.id, type: moveType, basePower, accuracy: data.accuracy,
         priority: data.priority, status: data.status, boosts: data.boosts, self: data.self, effectivenessBucket}
     })})) || null,
     side: raw.side ? {id: raw.side.id, name: raw.side.name, pokemon: raw.side.pokemon.map(mon => ({

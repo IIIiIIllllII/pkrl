@@ -44,6 +44,17 @@ describe('stateless pinned simulator', () => {
     expect(result.ai_decisions[0].chosen_action.label).toBe('Surf')
   })
 
+  it('uses the actual Hidden Power type and Gen 3 power from the request', async () => {
+    const human = [{species: 'Swampert', level: 50, moves: ['Protect']}]
+    const ai = [{species: 'Jolteon', level: 50, moves: ['Hidden Power Grass', 'Thunderbolt']}]
+    const input = {...base, battle_id: 'hidden-power-type'}
+    const start = await replayBattle(input, {human, ai})
+    const result = await replayBattle({...input, human_choices: [start.legal_actions[0].choice]}, {human, ai})
+    const hiddenPower = result.ai_decisions[0].candidates.find(action => action.label.startsWith('Hidden Power Grass'))
+    expect(hiddenPower?.feature_categories).toMatchObject({move_type: 'grass', damage_class: 'special', power_bucket: '41_70', effectiveness: 'quadruple'})
+    expect(result.ai_decisions[0].chosen_action.label).toMatch(/^Hidden Power Grass/)
+  })
+
   it('does not serialize an unrevealed opponent party member or hidden ability', async () => {
     const human = [{species: 'Swampert', level: 50, item: 'Leftovers', moves: ['Surf']}]
     const ai = [{species: 'Pidgey', level: 50, ability: 'Keen Eye', item: 'Choice Band', moves: ['Tackle']}, {species: 'Mewtwo', level: 50, ability: 'Pressure', item: 'Lum Berry', moves: ['Psychic']}]

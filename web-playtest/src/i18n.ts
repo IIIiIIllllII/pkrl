@@ -72,6 +72,7 @@ export const ITEM_KO: Record<string, string> = {
 }
 
 const STATUS_KO: Record<string, string> = {brn: '화상', par: '마비', psn: '독', tox: '맹독', slp: '잠듦', frz: '얼음', fnt: '기절', none: '없음'}
+const TYPE_KO: Record<string, string> = {Normal: '노말', Fire: '불꽃', Water: '물', Electric: '전기', Grass: '풀', Ice: '얼음', Fighting: '격투', Poison: '독', Ground: '땅', Flying: '비행', Psychic: '에스퍼', Bug: '벌레', Rock: '바위', Ghost: '고스트', Dragon: '드래곤', Dark: '악', Steel: '강철'}
 const DEBUG_KO: Record<string, string> = {
   damage: '공격', status: '변화기', setup: '랭크업', debuff: '능력 저하', recovery: '회복', protect: '방어', weather: '날씨', field: '필드', phaze: '강제 교체', pivot: '교체기', self_ko: '자폭', fixed: '고정 대미지', utility: '보조',
   immune: '무효', quarter: '¼배', half: '½배', neutral: '1배', double: '2배', quadruple: '4배', physical: '물리', special: '특수', legal: '사용 가능', illegal: '사용 불가',
@@ -89,6 +90,8 @@ export function battleName(value: string, locale: Locale): string {
   if (value.startsWith('Switch to ')) return `${battleName(value.slice(10), locale)}로 교체`
   if (value.startsWith('Switch option ')) return `교체 선택지 ${value.slice(14)}`
   if (value.startsWith('Move slot ')) return `기술 칸 ${value.slice(10)}`
+  const hiddenPower = /^Hidden Power ([A-Za-z]+)(?: (\d+))?$/.exec(value)
+  if (hiddenPower) return `잠재파워 (${TYPE_KO[hiddenPower[1]] || hiddenPower[1]})${hiddenPower[2] ? ` ${hiddenPower[2]}` : ''}`
   if (MOVE_KO[value]) return MOVE_KO[value]
   if (POKEMON_KO[value]) return POKEMON_KO[value]
   let translated = value

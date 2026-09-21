@@ -15,6 +15,7 @@ describe('Korean presentation localization', () => {
   it('localizes battle labels without changing canonical English values', () => {
     expect(battleName('Swampert', 'ko')).toBe('대짱이')
     expect(battleName('Hidden Power Bug', 'ko')).toBe('잠재파워 (벌레)')
+    expect(battleName('Hidden Power Grass 70', 'ko')).toBe('잠재파워 (풀) 70')
     expect(battleName('Switch to Metagross', 'ko')).toBe('메타그로스로 교체')
     expect(battleName('Thunderbolt', 'en')).toBe('Thunderbolt')
   })
