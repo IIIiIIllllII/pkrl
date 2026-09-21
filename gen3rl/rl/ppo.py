@@ -58,8 +58,8 @@ class PPOTrainer:
 
     def load(self, path):
         state=torch.load(path, map_location=self.device, weights_only=False)
-        if state.get("metadata",{}).get("feature_schema_version") not in (None,__import__("gen3rl.features.schema",fromlist=["SCHEMA_VERSION"]).SCHEMA_VERSION):
-            raise ValueError("incompatible feature schema")
+        from gen3rl.policy.lut import validate_checkpoint_schema
+        validate_checkpoint_schema(state,str(path))
         self.policy.load_state_dict(state["policy"])
         self.value.load_state_dict(state["value"]); self.optimizer.load_state_dict(state["optimizer"]); self.step=state["step"]
         rng=state.get("rng",{});

@@ -1,4 +1,5 @@
 import torch
+import pytest
 from gen3rl.rl.ppo import compute_gae,PPOTrainer
 from gen3rl.policy.lut import AdditiveLUTPolicy
 from gen3rl.features.schema import FEATURE_SPECS,SCHEMA_VERSION
@@ -17,3 +18,9 @@ def test_masked_ppo_update_and_resume(tmp_path):
     path=tmp_path/'resume.pt'; trainer.checkpoint(path,{}, {"feature_schema_version":SCHEMA_VERSION},{"decisions":123},["snapshot.pt"])
     other=PPOTrainer(AdditiveLUTPolicy(),len(FEATURE_SPECS)); state=other.load(path)
     assert state['counters']['decisions']==123 and state['opponent_pool']==['snapshot.pt'] and other.step==trainer.step
+
+def test_v1_checkpoint_is_rejected_by_v1_1_loader(tmp_path):
+    trainer=PPOTrainer(AdditiveLUTPolicy(),len(FEATURE_SPECS)); path=tmp_path/'old-v1.pt'
+    trainer.checkpoint(path,{}, {"feature_schema_version":"gen3-lut-v1"})
+    with pytest.raises(ValueError,match="not compatible with v1.1"):
+        PPOTrainer(AdditiveLUTPolicy(),len(FEATURE_SPECS)).load(path)

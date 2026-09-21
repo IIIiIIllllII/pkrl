@@ -13,4 +13,4 @@ team_distribution: {cartridge: 0.5, synthetic: 0.5}
 checkpoint_decisions: [500, 1000, 1500]
 evaluation_decisions: []
 evaluation_games: 10
-feature_schema: gen3-lut-v1
+feature_schema: gen3-lut-v1.1

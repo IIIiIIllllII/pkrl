@@ -112,7 +112,7 @@ export default function App() {
       {archiveCount > 0 && <button onClick={() => downloadJson('gen3-lut-playtest-session.json', {exported_at: new Date().toISOString(), battles: loadArchive()})}>{t.downloadArchive} ({archiveCount})</button>}
       {error && <p className="error">{error}</p>}
       </section>
-      <p className="note">{t.simulator}: Pokémon Showdown ({t.pinned}) 2ddfa047 · {t.format}: gen3customgame · {t.schema}: gen3-lut-v1</p>
+      <p className="note">{t.simulator}: Pokémon Showdown ({t.pinned}) 2ddfa047 · {t.format}: gen3customgame · {t.schema}: gen3-lut-v1 · {t.legacyWarning}</p>
     </section>
   </main>
 

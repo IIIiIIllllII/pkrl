@@ -1,0 +1,49 @@
+seed: 208011
+format: gen3customgame
+device: cpu
+torch_threads: 1
+torch_interop_threads: 1
+workers: 24
+battle_concurrency: 1
+worker_timeout: 90
+minimum_available_ram_gib: 8
+rollout_size: 4096
+max_decisions: 100000000
+learning_rate: 0.0003
+ppo:
+  epochs: 4
+  minibatch: 1024
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip: 0.2
+  entropy: 0.01
+  value: 0.5
+  gradient_clip: 0.5
+reward:
+  terminal: true
+  faint: 0.0
+  hp_delta: 0.0
+opponent_mixture:
+  random: 0.20
+  damage: 0.50
+  historical: 0.30
+team_distribution:
+  cartridge: 0.50
+  synthetic: 0.30
+  generalization: 0.20
+checkpoint_decisions: [50000, 100000, 250000, 500000, 1000000, 2000000, 5000000, 10000000, 20000000, 50000000, 100000000]
+safety_checkpoint_interval: 1000000
+safety_checkpoint_keep: 3
+quick_evaluation_interval: 1000000
+quick_evaluation_games: 50
+quick_evaluation_seed: 10000
+milestone_evaluation_decisions: [1000000, 2000000, 5000000, 10000000, 20000000, 50000000, 100000000]
+milestone_evaluation_games: 500
+milestone_evaluation_seed: 10000
+early_stop:
+  max_consecutive_empty_battles: 10
+  minimum_decisions_per_second: 100
+  evaluation_collapse_win_rate: 0.05
+feature_schema: gen3-lut-v1.1
+preflight_minutes: 0.05
+preflight_states: 500

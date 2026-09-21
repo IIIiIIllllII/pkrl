@@ -72,7 +72,7 @@ new file mode 100644
 index 000000000..23145e49c
 --- /dev/null
 +++ b/src/battle_ai_rl.c
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,231 @@
 +#include "global.h"
 +#include "battle.h"
 +#include "battle_ai_rl.h"
@@ -81,6 +81,10 @@ index 000000000..23145e49c
 +#include "constants/moves.h"
 +#include "constants/pokemon.h"
 +#include "constants/battle_move_effects.h"
++
++#if !defined(RL_FEATURE_SCHEMA_REVISION) || RL_FEATURE_SCHEMA_REVISION != 101
++#error "Battle AI encoder requires a gen3-lut-v1.1 LUT"
++#endif
 +
 +static u8 MoveRole(u16 move)
 +{
@@ -96,6 +100,8 @@ index 000000000..23145e49c
 +    case MOVE_EXPLOSION: case MOVE_SELF_DESTRUCT: case MOVE_MEMENTO: return 10;
 +    case MOVE_SEISMIC_TOSS: case MOVE_NIGHT_SHADE: case MOVE_DRAGON_RAGE:
 +    case MOVE_SONIC_BOOM: case MOVE_PSYWAVE: case MOVE_SUPER_FANG: return 11;
++    case MOVE_FLAIL: case MOVE_FRUSTRATION: case MOVE_HIDDEN_POWER:
++    case MOVE_LOW_KICK: case MOVE_RETURN: case MOVE_REVERSAL: return 0;
 +    }
 +    if (gBattleMoves[move].power != 0) return 0;
 +    switch (gBattleMoves[move].effect)
@@ -162,6 +168,85 @@ index 000000000..23145e49c
 +    return 5;
 +}
 +
++static bool8 IsFixedDamageMove(u16 move)
++{
++    switch (move)
++    {
++    case MOVE_COUNTER: case MOVE_DRAGON_RAGE: case MOVE_ENDEAVOR:
++    case MOVE_MIRROR_COAT: case MOVE_NIGHT_SHADE: case MOVE_PSYWAVE:
++    case MOVE_SEISMIC_TOSS: case MOVE_SONIC_BOOM: case MOVE_SUPER_FANG:
++        return TRUE;
++    }
++    return FALSE;
++}
++
++static bool8 IsVariableDamageMove(u16 move)
++{
++    switch (move)
++    {
++    case MOVE_FLAIL: case MOVE_FRUSTRATION: case MOVE_HIDDEN_POWER:
++    case MOVE_LOW_KICK: case MOVE_RETURN: case MOVE_REVERSAL:
++        return TRUE;
++    }
++    return FALSE;
++}
++
++static u8 MoveClass(u16 move)
++{
++    if (IsFixedDamageMove(move)) return 1;
++    if (gBattleMoves[move].power != 0 || IsVariableDamageMove(move)) return 0;
++    return 2;
++}
++
++static u8 HiddenPowerType(u8 battler)
++{
++    u8 bits = ((gBattleMons[battler].hpIV & 1) << 0)
++            | ((gBattleMons[battler].attackIV & 1) << 1)
++            | ((gBattleMons[battler].defenseIV & 1) << 2)
++            | ((gBattleMons[battler].speedIV & 1) << 3)
++            | ((gBattleMons[battler].spAttackIV & 1) << 4)
++            | ((gBattleMons[battler].spDefenseIV & 1) << 5);
++    u8 type = ((NUMBER_OF_MON_TYPES - 3) * bits) / 63 + 1;
++    if (type >= TYPE_MYSTERY) type++;
++    return type;
++}
++
++static u8 HiddenPowerPower(u8 battler)
++{
++    u8 bits = ((gBattleMons[battler].hpIV & 2) >> 1)
++            | ((gBattleMons[battler].attackIV & 2) << 0)
++            | ((gBattleMons[battler].defenseIV & 2) << 1)
++            | ((gBattleMons[battler].speedIV & 2) << 2)
++            | ((gBattleMons[battler].spAttackIV & 2) << 3)
++            | ((gBattleMons[battler].spDefenseIV & 2) << 4);
++    return (40 * bits) / 63 + 30;
++}
++
++static bool8 StatusMoveApplicable(u16 move, u8 moveType, u8 target)
++{
++    u8 type1 = gBattleMons[target].types[0];
++    u8 type2 = gBattleMons[target].types[1];
++    u8 effect = gBattleMoves[move].effect;
++    if ((move == MOVE_THUNDER_WAVE || move == MOVE_GLARE) && TypeEffectBucket(moveType, target) == 0) return FALSE;
++    if ((effect == EFFECT_POISON || effect == EFFECT_TOXIC) &&
++        (type1 == TYPE_POISON || type2 == TYPE_POISON || type1 == TYPE_STEEL || type2 == TYPE_STEEL)) return FALSE;
++    if (effect == EFFECT_WILL_O_WISP && (type1 == TYPE_FIRE || type2 == TYPE_FIRE)) return FALSE;
++    if (move == MOVE_LEECH_SEED && (type1 == TYPE_GRASS || type2 == TYPE_GRASS)) return FALSE;
++    if ((effect == EFFECT_SLEEP || effect == EFFECT_POISON || effect == EFFECT_TOXIC ||
++         effect == EFFECT_PARALYZE || effect == EFFECT_WILL_O_WISP) && gBattleMons[target].status1) return FALSE;
++    if (move == MOVE_NIGHTMARE && !(gBattleMons[target].status1 & STATUS1_SLEEP)) return FALSE;
++    return TRUE;
++}
++
++static u8 EffectivenessFeature(u16 move, u8 moveType, u8 target)
++{
++    u8 moveClass = MoveClass(move);
++    u8 chart = TypeEffectBucket(moveType, target);
++    if (moveClass == 0) return chart;
++    if (moveClass == 1) return chart == 0 ? 0 : 3;
++    return StatusMoveApplicable(move, moveType, target) ? 3 : 0;
++}
++
 +bool8 BattleAIRL_IsSupported(void)
 +{
 +    const u32 excluded = BATTLE_TYPE_DOUBLE | BATTLE_TYPE_LINK | BATTLE_TYPE_SAFARI
@@ -181,18 +266,19 @@ index 000000000..23145e49c
 +    {
 +        u16 move = gBattleMons[gActiveBattler].moves[slot];
 +        const struct BattleMove *data = &gBattleMoves[move];
-+        u8 power = data->power;
++        u8 moveType = move == MOVE_HIDDEN_POWER ? HiddenPowerType(gActiveBattler) : data->type;
++        u8 power = move == MOVE_HIDDEN_POWER ? HiddenPowerPower(gActiveBattler) : data->power;
 +        u8 accuracy = data->accuracy;
 +        u8 pp = gBattleMons[gActiveBattler].pp[slot];
 +        features[slot][RL_FEATURE_ACTION_SLOT] = slot;
 +        features[slot][RL_FEATURE_MOVE_ROLE] = MoveRole(move);
-+        features[slot][RL_FEATURE_MOVE_TYPE] = TypeSchemaId(data->type);
-+        features[slot][RL_FEATURE_DAMAGE_CLASS] = power == 0 ? 2 : data->type <= TYPE_STEEL ? 0 : 1;
++        features[slot][RL_FEATURE_MOVE_TYPE] = TypeSchemaId(moveType);
++        features[slot][RL_FEATURE_DAMAGE_CLASS] = MoveClass(move) == 2 ? 2 : moveType <= TYPE_STEEL ? 0 : 1;
 +        features[slot][RL_FEATURE_POWER_BUCKET] = power == 0 ? 0 : power <= 40 ? 1 : power <= 70 ? 2 : power <= 100 ? 3 : 4;
 +        features[slot][RL_FEATURE_ACCURACY_BUCKET] = accuracy == 0 ? 0 : accuracy <= 70 ? 1 : accuracy <= 85 ? 2 : accuracy < 100 ? 3 : 4;
 +        features[slot][RL_FEATURE_PRIORITY_BUCKET] = data->priority < 0 ? 0 : data->priority > 0 ? 2 : 1;
-+        features[slot][RL_FEATURE_STAB] = data->type == gBattleMons[gActiveBattler].types[0] || data->type == gBattleMons[gActiveBattler].types[1];
-+        features[slot][RL_FEATURE_EFFECTIVENESS] = TypeEffectBucket(data->type, target);
++        features[slot][RL_FEATURE_STAB] = moveType == gBattleMons[gActiveBattler].types[0] || moveType == gBattleMons[gActiveBattler].types[1];
++        features[slot][RL_FEATURE_EFFECTIVENESS] = EffectivenessFeature(move, moveType, target);
 +        features[slot][RL_FEATURE_PP_BUCKET] = pp == 0 ? 0 : pp <= 4 ? 1 : pp <= 9 ? 2 : pp <= 19 ? 3 : 4;
 +        features[slot][RL_FEATURE_USER_HP] = HpBucket(gBattleMons[gActiveBattler].hp, gBattleMons[gActiveBattler].maxHP);
 +        features[slot][RL_FEATURE_TARGET_HP] = HpBucket(gBattleMons[target].hp, gBattleMons[target].maxHP);
@@ -223,10 +309,12 @@ new file mode 100644
 index 000000000..cae79d270
 --- /dev/null
 +++ b/src/data/battle_ai_rl_lut.h
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,30 @@
 +#ifndef GUARD_BATTLE_AI_RL_LUT_H
 +#define GUARD_BATTLE_AI_RL_LUT_H
 +#include <stdint.h>
++#define RL_FEATURE_SCHEMA "gen3-lut-v1"
++#define RL_FEATURE_SCHEMA_REVISION 100
 +#define RL_FEATURE_COUNT 20
 +#define RL_LUT_PARAMETERS 349
 +#define RL_FEATURE_ACTION_SLOT 0

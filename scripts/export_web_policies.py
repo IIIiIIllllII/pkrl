@@ -12,7 +12,7 @@ import torch
 from gen3rl.export.lut import collect
 from gen3rl.features.encoder import encode_request
 from gen3rl.features.schema import FEATURE_SPECS, PAIR_SPECS, SCHEMA_VERSION
-from gen3rl.policy.lut import AdditiveLUTPolicy, NumpyLUTActor
+from gen3rl.policy.lut import AdditiveLUTPolicy, NumpyLUTActor, validate_checkpoint_schema
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,15 +21,18 @@ def find_run() -> Path:
     candidates = []
     for checkpoint in ROOT.rglob("checkpoints/decision_100000000.pt"):
         run = checkpoint.parent.parent
-        if (run / "metrics.jsonl").is_file() and (run / "evaluations").is_dir():
+        metadata_path=run/"source_metadata.json"
+        schema=json.loads(metadata_path.read_text()).get("feature_schema_version") if metadata_path.is_file() else None
+        if schema == SCHEMA_VERSION and (run / "metrics.jsonl").is_file() and (run / "evaluations").is_dir():
             candidates.append(run)
     if not candidates:
-        raise FileNotFoundError("no completed run with a 100M checkpoint was found")
+        raise FileNotFoundError(f"no completed {SCHEMA_VERSION} run with a 100M checkpoint was found")
     return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
 def policy_asset(checkpoint: Path, decisions: int) -> dict:
     state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    validate_checkpoint_schema(state, str(checkpoint))
     policy = AdditiveLUTPolicy()
     policy.load_state_dict(state["policy"])
     tables = collect(policy)
@@ -139,6 +142,7 @@ def main() -> None:
         for policy_id, asset in assets.items():
             checkpoint = run / "checkpoints" / f"decision_{asset['checkpoint_decisions']}.pt"
             state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+            validate_checkpoint_schema(state, str(checkpoint))
             policy = AdditiveLUTPolicy(); policy.load_state_dict(state["policy"])
             scores = NumpyLUTActor(policy).logits(features, mask)
             expected[policy_id] = {

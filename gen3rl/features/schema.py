@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 
-SCHEMA_VERSION = "gen3-lut-v1"
+SCHEMA_VERSION = "gen3-lut-v1.1"
 MAX_ACTIONS = 9
 MOVE_ACTIONS = 4
 
@@ -84,4 +84,3 @@ def parameter_count() -> int:
     total = MOVE_ACTIONS + sum(f.size for f in FEATURE_SPECS)
     total += sum(FEATURE_SPECS[FEATURE_INDEX[a]].size * FEATURE_SPECS[FEATURE_INDEX[b]].size for a, b in PAIR_SPECS)
     return total
-

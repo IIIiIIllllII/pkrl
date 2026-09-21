@@ -1,0 +1,255 @@
+{
+  "kind": "seeded fresh-state proxy; historical rollout states were not retained",
+  "checkpoint": "/home/alexa/projects/pkrl/20260919-173958/checkpoints/decision_100000000.pt",
+  "seed": 881100,
+  "counts": {
+    "states": 10000,
+    "legal_move_candidates": 35275,
+    "effectiveness_candidate_differences": 6711,
+    "any_feature_candidate_differences": 8527,
+    "states_with_effectiveness_difference": 4079,
+    "legacy_selected_action_had_effectiveness_difference": 1420,
+    "counterfactual_top1_changes": 1045
+  },
+  "differences_by_v1_1_move_role": {
+    "weather": 716,
+    "status": 2406,
+    "utility": 346,
+    "recovery": 422,
+    "protect": 463,
+    "phaze": 375,
+    "field": 294,
+    "damage": 479,
+    "pivot": 79,
+    "setup": 174,
+    "fixed": 904,
+    "debuff": 52,
+    "self_ko": 1
+  },
+  "fractions": {
+    "legal_candidates_effectiveness_changed": 0.19024805102763997,
+    "states_with_effectiveness_change": 0.4079,
+    "legacy_selected_action_feature_changed": 0.142,
+    "counterfactual_top1_changed_using_old_weights": 0.1045
+  },
+  "examples": [
+    {
+      "target": {
+        "species": "Swampert",
+        "hpBucket": 4,
+        "status": "",
+        "types": [
+          "Water",
+          "Ground"
+        ],
+        "estimatedSpeed": 80
+      },
+      "moves": [
+        "Sandstorm"
+      ],
+      "old_top1": 1,
+      "v1_1_top1_with_old_weights": 1
+    },
+    {
+      "target": {
+        "species": "Swampert",
+        "hpBucket": 2,
+        "status": "",
+        "types": [
+          "Water",
+          "Ground"
+        ],
+        "estimatedSpeed": 80
+      },
+      "moves": [
+        "Sandstorm"
+      ],
+      "old_top1": 1,
+      "v1_1_top1_with_old_weights": 1
+    },
+    {
+      "target": {
+        "species": "Swampert",
+        "hpBucket": 1,
+        "status": "",
+        "types": [
+          "Water",
+          "Ground"
+        ],
+        "estimatedSpeed": 80
+      },
+      "moves": [
+        "Toxic"
+      ],
+      "old_top1": 0,
+      "v1_1_top1_with_old_weights": 0
+    },
+    {
+      "target": {
+        "species": "Tyranitar",
+        "hpBucket": 4,
+        "status": "",
+        "types": [
+          "Rock",
+          "Dark"
+        ],
+        "estimatedSpeed": 81
+      },
+      "moves": [
+        "Rain Dance",
+        "Leech Seed"
+      ],
+      "old_top1": 1,
+      "v1_1_top1_with_old_weights": 1
+    },
+    {
+      "target": {
+        "species": "Tyranitar",
+        "hpBucket": 2,
+        "status": "",
+        "types": [
+          "Rock",
+          "Dark"
+        ],
+        "estimatedSpeed": 81
+      },
+      "moves": [
+        "Rain Dance",
+        "Leech Seed"
+      ],
+      "old_top1": 1,
+      "v1_1_top1_with_old_weights": 1
+    },
+    {
+      "target": {
+        "species": "Shedinja",
+        "hpBucket": 4,
+        "status": "",
+        "types": [
+          "Bug",
+          "Ghost"
+        ],
+        "estimatedSpeed": 60
+      },
+      "moves": [
+        "Leech Seed"
+      ],
+      "old_top1": 1,
+      "v1_1_top1_with_old_weights": 1
+    },
+    {
+      "target": {
+        "species": "Skarmory",
+        "hpBucket": 4,
+        "status": "",
+        "types": [
+          "Steel",
+          "Flying"
+        ],
+        "estimatedSpeed": 90
+      },
+      "moves": [
+        "Will-O-Wisp",
+        "Rest",
+        "Protect"
+      ],
+      "old_top1": 1,
+      "v1_1_top1_with_old_weights": 1
+    },
+    {
+      "target": {
+        "species": "Skarmory",
+        "hpBucket": 4,
+        "status": "brn",
+        "types": [
+          "Steel",
+          "Flying"
+        ],
+        "estimatedSpeed": 90
+      },
+      "moves": [
+        "Will-O-Wisp",
+        "Rest",
+        "Protect"
+      ],
+      "old_top1": 3,
+      "v1_1_top1_with_old_weights": 3
+    },
+    {
+      "target": {
+        "species": "Skarmory",
+        "hpBucket": 4,
+        "status": "brn",
+        "types": [
+          "Steel",
+          "Flying"
+        ],
+        "estimatedSpeed": 90
+      },
+      "moves": [
+        "Will-O-Wisp",
+        "Rest",
+        "Protect"
+      ],
+      "old_top1": 3,
+      "v1_1_top1_with_old_weights": 3
+    },
+    {
+      "target": {
+        "species": "Skarmory",
+        "hpBucket": 3,
+        "status": "brn",
+        "types": [
+          "Steel",
+          "Flying"
+        ],
+        "estimatedSpeed": 90
+      },
+      "moves": [
+        "Will-O-Wisp",
+        "Rest",
+        "Protect"
+      ],
+      "old_top1": 3,
+      "v1_1_top1_with_old_weights": 3
+    },
+    {
+      "target": {
+        "species": "Skarmory",
+        "hpBucket": 3,
+        "status": "brn",
+        "types": [
+          "Steel",
+          "Flying"
+        ],
+        "estimatedSpeed": 90
+      },
+      "moves": [
+        "Will-O-Wisp",
+        "Rest",
+        "Protect"
+      ],
+      "old_top1": 3,
+      "v1_1_top1_with_old_weights": 3
+    },
+    {
+      "target": {
+        "species": "Skarmory",
+        "hpBucket": 2,
+        "status": "brn",
+        "types": [
+          "Steel",
+          "Flying"
+        ],
+        "estimatedSpeed": 90
+      },
+      "moves": [
+        "Will-O-Wisp",
+        "Rest",
+        "Protect"
+      ],
+      "old_top1": 3,
+      "v1_1_top1_with_old_weights": 3
+    }
+  ]
+}

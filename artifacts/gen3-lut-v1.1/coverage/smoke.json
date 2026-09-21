@@ -1,0 +1,471 @@
+{
+  "features": {
+    "action_slot": [
+      13,
+      9,
+      9,
+      9
+    ],
+    "move_role": [
+      37,
+      0,
+      0,
+      0,
+      0,
+      3,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "move_type": [
+      19,
+      0,
+      3,
+      0,
+      0,
+      3,
+      6,
+      0,
+      3,
+      0,
+      0,
+      0,
+      0,
+      6,
+      0,
+      0,
+      0,
+      0
+    ],
+    "damage_class": [
+      31,
+      6,
+      3
+    ],
+    "power_bucket": [
+      13,
+      6,
+      0,
+      21,
+      0
+    ],
+    "accuracy_bucket": [
+      7,
+      0,
+      0,
+      0,
+      33
+    ],
+    "priority_bucket": [
+      4,
+      27,
+      9
+    ],
+    "stab": [
+      22,
+      18
+    ],
+    "effectiveness": [
+      8,
+      0,
+      0,
+      28,
+      4,
+      0
+    ],
+    "pp_bucket": [
+      4,
+      0,
+      0,
+      9,
+      27
+    ],
+    "user_hp": [
+      4,
+      0,
+      4,
+      8,
+      24
+    ],
+    "target_hp": [
+      4,
+      20,
+      0,
+      4,
+      12
+    ],
+    "user_status": [
+      40,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "target_status": [
+      40,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "speed_relation": [
+      16,
+      16,
+      8
+    ],
+    "can_ko": [
+      40,
+      0
+    ],
+    "damage_fraction": [
+      40,
+      0,
+      0,
+      0,
+      0
+    ],
+    "first_turn": [
+      36,
+      4
+    ],
+    "weather": [
+      40,
+      0,
+      0,
+      0,
+      0
+    ],
+    "stage_summary": [
+      4,
+      0,
+      36,
+      0,
+      0
+    ]
+  },
+  "pairs": {
+    "effectiveness_x_move_role": [
+      [
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        25,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "user_hp_x_move_role": [
+      [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        6,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        23,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "target_hp_x_can_ko": [
+      [
+        4,
+        0
+      ],
+      [
+        20,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        12,
+        0
+      ]
+    ],
+    "speed_relation_x_can_ko": [
+      [
+        16,
+        0
+      ],
+      [
+        16,
+        0
+      ],
+      [
+        8,
+        0
+      ]
+    ],
+    "target_status_x_move_role": [
+      [
+        37,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "warnings": [
+    "move_role: unvisited categories",
+    "move_type: unvisited categories",
+    "power_bucket: unvisited categories",
+    "accuracy_bucket: unvisited categories",
+    "effectiveness: unvisited categories",
+    "pp_bucket: unvisited categories",
+    "user_hp: unvisited categories",
+    "target_hp: unvisited categories",
+    "user_status: unvisited categories",
+    "target_status: unvisited categories",
+    "can_ko: unvisited categories",
+    "damage_fraction: unvisited categories",
+    "weather: unvisited categories",
+    "stage_summary: unvisited categories",
+    "effectiveness x move_role: over 50% cells unvisited",
+    "user_hp x move_role: over 50% cells unvisited",
+    "target_hp x can_ko: over 50% cells unvisited",
+    "target_status x move_role: over 50% cells unvisited"
+  ]
+}

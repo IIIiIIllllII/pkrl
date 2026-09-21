@@ -1,5 +1,10 @@
 # Pre-long-run audit
 
+> Historical note: this audit described the original `gen3-lut-v1` launch.
+> That 100M run is now confirmed contaminated by the type-effectiveness bugs in
+> `docs/contamination_audit.md`. It is not approval to resume v1. Current
+> readiness must come from the v1.1 validation results.
+
 ## Blockers found and fixed
 
 - **Forced switch policy was invalid.** Switch logits were initialized to the

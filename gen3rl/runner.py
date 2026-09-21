@@ -6,12 +6,23 @@ import torch
 from gen3rl.env.bridge import ShowdownBridge, DEFAULT_TEAM
 from gen3rl.features.encoder import encode_request
 from gen3rl.features.schema import FEATURE_SPECS, FEATURE_INDEX, PAIR_SPECS, SCHEMA_VERSION
-from gen3rl.policy.lut import AdditiveLUTPolicy,NumpyLUTActor
+from gen3rl.policy.lut import AdditiveLUTPolicy,NumpyLUTActor,validate_checkpoint_schema
 from gen3rl.rl.ppo import PPOTrainer, compute_gae
 from gen3rl.export.lut import export_policy
 from gen3rl.teams import synthetic_match, cartridge_match
 
 ROOT=Path(__file__).resolve().parents[1]
+SCHEMA_ARTIFACTS=ROOT/"artifacts"/SCHEMA_VERSION
+
+def validate_schema_config(config):
+    configured=config.get("feature_schema")
+    if configured != SCHEMA_VERSION:
+        raise ValueError(f"config feature_schema must be {SCHEMA_VERSION}, got {configured!r}")
+
+def configure_torch_threads(config):
+    torch.set_num_threads(int(config.get("torch_threads",1)))
+    try: torch.set_num_interop_threads(int(config.get("torch_interop_threads",1)))
+    except RuntimeError: pass  # process-global setting may already be frozen by an earlier smoke/test
 
 def commit(path):
     try: return subprocess.check_output(["git","-C",str(path),"rev-parse","HEAD"],text=True,stderr=subprocess.DEVNULL).strip()
@@ -88,22 +99,29 @@ def battle(policy, seed=1, deterministic=False, max_decisions=300, bridge=None, 
     return traces,reward,winner,elapsed
 
 def smoke(config):
+    validate_schema_config(config)
+    configure_torch_threads(config)
     seed=int(config.get("seed",7)); random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
-    policy=AdditiveLUTPolicy(); trainer=PPOTrainer(policy,len(FEATURE_SPECS),lr=float(config.get("learning_rate",3e-4)))
-    traces,reward,winner,elapsed=battle(policy,seed)
+    policy=AdditiveLUTPolicy(); ppo=config.get("ppo",{}); trainer=PPOTrainer(policy,len(FEATURE_SPECS),lr=float(config.get("learning_rate",3e-4)),
+        clip=float(ppo.get("clip",.2)),entropy_coef=float(ppo.get("entropy",.01)),value_coef=float(ppo.get("value",.5)),gradient_clip=float(ppo.get("gradient_clip",.5)))
+    initial=torch.cat([x.detach().flatten() for x in policy.parameters()]).clone(); profile={}
+    traces,reward,winner,elapsed=battle(policy,seed,profile=profile)
     if not traces: raise RuntimeError("battle produced no policy decisions")
     features=torch.as_tensor(np.stack([x[0] for x in traces]),dtype=torch.long)
     masks=torch.as_tensor(np.stack([x[1] for x in traces]),dtype=torch.bool)
     actions=torch.tensor([x[2] for x in traces]); old_logp=torch.tensor([x[3] for x in traces])
     values=trainer.value(features[:,:4,:].reshape(len(features),-1).float()).detach(); rewards=torch.zeros(len(traces)); rewards[-1]=reward
     dones=torch.zeros(len(traces)); dones[-1]=1; adv,returns=compute_gae(rewards,values,dones)
-    stats=trainer.update(features,masks,actions,old_logp,returns,adv)
-    out=ROOT/"artifacts/checkpoints"; out.mkdir(parents=True,exist_ok=True); cp=out/"smoke.pt"
+    stats=trainer.update(features,masks,actions,old_logp,returns,adv,epochs=int(ppo.get("epochs",1)),minibatch_size=int(ppo.get("minibatch",len(features))))
+    final_params=torch.cat([x.detach().flatten() for x in policy.parameters()]); changed=int(torch.count_nonzero(final_params!=initial))
+    if not changed: raise RuntimeError("smoke PPO update changed no policy parameters")
+    if not np.isfinite(list(stats.__dict__.values())).all() or not torch.isfinite(final_params).all(): raise FloatingPointError("non-finite smoke result")
+    out=SCHEMA_ARTIFACTS/"checkpoints"; out.mkdir(parents=True,exist_ok=True); cp=out/"smoke.pt"
     meta=metadata(config,seed); trainer.checkpoint(cp,config,meta)
     loaded=AdditiveLUTPolicy(); roundtrip=PPOTrainer(loaded,len(FEATURE_SPECS)); roundtrip.load(cp)
     for a,b in zip(policy.parameters(),loaded.parameters()):
         if not torch.equal(a,b): raise AssertionError("checkpoint round-trip mismatch")
-    manifest,_=export_policy(policy,ROOT/"artifacts")
+    manifest,_=export_policy(policy,SCHEMA_ARTIFACTS)
     coverage={"features":{},"pairs":{},"warnings":[]}
     raw=features.numpy()[:,:4,:]
     for i,spec in enumerate(FEATURE_SPECS):
@@ -116,15 +134,16 @@ def smoke(config):
         np.add.at(counts,(raw[:,:,FEATURE_INDEX[a]].ravel(),raw[:,:,FEATURE_INDEX[b]].ravel()),1)
         coverage["pairs"][f"{a}_x_{b}"]=counts.tolist()
         if np.mean(counts==0)>.5: coverage["warnings"].append(f"{a} x {b}: over 50% cells unvisited")
-    covpath=ROOT/"artifacts/coverage/smoke.json"; covpath.parent.mkdir(parents=True,exist_ok=True)
+    covpath=SCHEMA_ARTIFACTS/"coverage/smoke.json"; covpath.parent.mkdir(parents=True,exist_ok=True)
     covpath.write_text(json.dumps(coverage,indent=2)+"\n")
     from gen3rl.export.parity import verify
-    quantization=verify(ROOT/"artifacts",samples=5000,seed=seed)
+    quantization=verify(SCHEMA_ARTIFACTS,samples=5000,seed=seed)
     summary={"battles":1,"environment_steps":len(traces),"ppo_updates":1,"winner":winner,
              "seconds":elapsed,"steps_per_second":len(traces)/elapsed,"checkpoint":str(cp),
              "checkpoint_roundtrip":True,"lut":manifest,"float_lut_bytes":manifest["parameters"]*4,
-             "quantization":quantization,"coverage":str(covpath),**stats.__dict__}
-    (ROOT/"artifacts/smoke_summary.json").write_text(json.dumps(summary,indent=2)+"\n")
+             "quantization":quantization,"coverage":str(covpath),"illegal_actions":profile.get("illegal_actions",0),
+             "policy_parameters_changed":changed,"finite_parameters":True,**stats.__dict__}
+    (SCHEMA_ARTIFACTS/"smoke_summary.json").write_text(json.dumps(summary,indent=2)+"\n")
     return summary
 
 def _batch_episode(trainer,traces,reward,gamma=.99,lam=.95):
@@ -161,13 +180,15 @@ def evaluate_suites(policy, bridge, games=100, seed=10_000):
 def train_run(config, resume=None):
     from contextlib import ExitStack
     from gen3rl.parallel import RolloutPool, validate_policy_versions
+    validate_schema_config(config)
+    configure_torch_threads(config)
     seed=int(config.get("seed",31173)); random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     workers=int(config.get("workers",1))
     device=str(config.get("device","cpu")); device="cuda" if device=="auto" and torch.cuda.is_available() else "cpu" if device=="auto" else device
     policy=AdditiveLUTPolicy(); ppo=config.get("ppo",{}); trainer=PPOTrainer(policy,len(FEATURE_SPECS),lr=float(config.get("learning_rate",3e-4)),
         clip=float(ppo.get("clip",.2)),entropy_coef=float(ppo.get("entropy",.01)),value_coef=float(ppo.get("value",.5)),
         gradient_clip=float(ppo.get("gradient_clip",.5)),device=device)
-    stamp=time.strftime("%Y%m%d-%H%M%S"); run_dir=ROOT/"artifacts/runs"/stamp
+    stamp=time.strftime("%Y%m%d-%H%M%S"); run_dir=ROOT/"artifacts/runs"/SCHEMA_VERSION/stamp
     counters={"decisions":0,"battles":0,"updates":0,"policy_version":0,"illegal_actions":0,"elapsed_seconds":0.0}; opponent_paths=[]
     if resume:
         state=trainer.load(resume); counters.update(state.get("counters",{})); opponent_paths=state.get("opponent_pool",[])
@@ -215,7 +236,8 @@ def train_run(config, resume=None):
                 teams=cartridge_match(battle_seed,"train") if domain=="cartridge" else synthetic_match(battle_seed)
                 opp=_weighted_choice(rng,opponent_weights); opponent_policy=None
                 if opp=="historical" and opponent_paths:
-                    snap=torch.load(rng.choice(opponent_paths),map_location="cpu",weights_only=False); opponent_policy=AdditiveLUTPolicy(); opponent_policy.load_state_dict(snap["policy"]); opponent_policy.eval()
+                    snapshot_path=rng.choice(opponent_paths); snap=torch.load(snapshot_path,map_location="cpu",weights_only=False)
+                    validate_checkpoint_schema(snap,snapshot_path); opponent_policy=AdditiveLUTPolicy(); opponent_policy.load_state_dict(snap["policy"]); opponent_policy.eval()
                 else: opp="random" if opp=="random" else "damage"
                 traces,reward,_,_=battle(policy,battle_seed,False,bridge=eval_bridge,teams=teams,opponent=opp,opponent_policy=opponent_policy,profile=profile,actor=actor)
                 if not traces:
@@ -263,7 +285,8 @@ def train_run(config, resume=None):
         print(json.dumps({k:row[k] for k in ("decisions","target_decisions","battles","workers","policy_version","decisions_per_second_ema","battles_per_second_ema","elapsed_wall_time","eta_next_checkpoint_seconds","eta_final_seconds")}),flush=True)
         due=[x for x in checkpoints if counters["decisions"]>=x and not (run_dir/"checkpoints"/f"decision_{x}.pt").exists()]
         for threshold in due:
-            snapshot=run_dir/"checkpoints"/f"opponent_{threshold}.pt"; torch.save({"policy":policy.state_dict(),"schema":SCHEMA_VERSION},snapshot); opponent_paths.append(str(snapshot))
+            snapshot=run_dir/"checkpoints"/f"opponent_{threshold}.pt"
+            torch.save({"policy":policy.state_dict(),"schema":SCHEMA_VERSION,"metadata":metadata(config,seed)},snapshot); opponent_paths.append(str(snapshot))
             cp=run_dir/"checkpoints"/f"decision_{threshold}.pt"; trainer.checkpoint(cp,config,metadata(config,seed),counters,opponent_paths)
         if safety_interval:
             safety_step=(counters["decisions"]//safety_interval)*safety_interval; safety_path=run_dir/"checkpoints"/f"safety_{safety_step}.pt"

@@ -4,6 +4,10 @@ from pathlib import Path
 import yaml
 ROOT=Path(__file__).resolve().parents[1]
 
+def schema_artifacts():
+    from gen3rl.features.schema import SCHEMA_VERSION
+    return ROOT/"artifacts"/SCHEMA_VERSION
+
 def run(cmd,cwd=ROOT,check=True): return subprocess.run(cmd,cwd=cwd,text=True,capture_output=True,check=check)
 def load_config(path): return yaml.safe_load(Path(path).read_text())
 
@@ -60,19 +64,20 @@ def train(args):
     print(json.dumps(train_run(config,resume=args.resume),indent=2))
 def export(args):
     import torch
-    from gen3rl.policy.lut import AdditiveLUTPolicy
+    from gen3rl.policy.lut import AdditiveLUTPolicy, validate_checkpoint_schema
     from gen3rl.export.lut import export_policy
-    p=AdditiveLUTPolicy(); state=torch.load(args.checkpoint,map_location="cpu",weights_only=False); p.load_state_dict(state["policy"])
-    manifest,_=export_policy(p,ROOT/"artifacts"); print(json.dumps(manifest,indent=2))
+    p=AdditiveLUTPolicy(); state=torch.load(args.checkpoint,map_location="cpu",weights_only=False); validate_checkpoint_schema(state,args.checkpoint); p.load_state_dict(state["policy"])
+    manifest,_=export_policy(p,schema_artifacts()); print(json.dumps(manifest,indent=2))
 def parity(_):
-    from gen3rl.export.parity import verify; print(json.dumps(verify(ROOT/"artifacts"),indent=2))
+    from gen3rl.export.parity import verify; print(json.dumps(verify(schema_artifacts()),indent=2))
 def evaluate(args):
     import torch
-    from gen3rl.policy.lut import AdditiveLUTPolicy
+    from gen3rl.policy.lut import AdditiveLUTPolicy, validate_checkpoint_schema
     from gen3rl.runner import evaluate_suites
     from gen3rl.env.bridge import ShowdownBridge
     p=AdditiveLUTPolicy()
-    if args.checkpoint: p.load_state_dict(torch.load(args.checkpoint,map_location="cpu",weights_only=False)["policy"])
+    if args.checkpoint:
+        state=torch.load(args.checkpoint,map_location="cpu",weights_only=False); validate_checkpoint_schema(state,args.checkpoint); p.load_state_dict(state["policy"])
     with ShowdownBridge() as bridge: results=evaluate_suites(p,bridge,args.games,seed=args.seed)
     output=Path(args.output)
     output.parent.mkdir(parents=True,exist_ok=True); output.write_text(json.dumps(results,indent=2)+"\n")
@@ -90,13 +95,15 @@ def benchmark_scaling_cmd(args):
 
 def real_states_cmd(args):
     import torch
-    from gen3rl.policy.lut import AdditiveLUTPolicy
+    from gen3rl.policy.lut import AdditiveLUTPolicy, validate_checkpoint_schema
     from gen3rl.eval.reports import collect_states,quantization_report,coverage_report,fixed_eval_manifest
     p=AdditiveLUTPolicy()
-    if args.checkpoint: p.load_state_dict(torch.load(args.checkpoint,map_location="cpu",weights_only=False)["policy"])
-    states,masks,domains,info=collect_states(p,args.states); q=quantization_report(p,states,masks,domains); q["source_battles"]=info["battles"]
-    (ROOT/"artifacts/reports/quantization_real_states.json").write_text(json.dumps(q,indent=2)+"\n")
-    coverage=coverage_report(states,masks); fixed_eval_manifest(); print(json.dumps({"quantization":q,"coverage":{k:coverage[k] for k in ("visited_entries","rare_entries","unvisited_entries","warnings")}},indent=2))
+    if args.checkpoint:
+        state=torch.load(args.checkpoint,map_location="cpu",weights_only=False); validate_checkpoint_schema(state,args.checkpoint); p.load_state_dict(state["policy"])
+    report_root=schema_artifacts()/"reports"; report_root.mkdir(parents=True,exist_ok=True)
+    states,masks,domains,info=collect_states(p,args.states); q=quantization_report(p,states,masks,domains,report_root/"quantization_real_states.json"); q["source_battles"]=info["battles"]
+    (report_root/"quantization_real_states.json").write_text(json.dumps(q,indent=2)+"\n")
+    coverage=coverage_report(states,masks,report_root/"feature_coverage.json"); fixed_eval_manifest(schema_artifacts()/"eval/fixed_suites.json"); print(json.dumps({"quantization":q,"coverage":{k:coverage[k] for k in ("visited_entries","rare_entries","unvisited_entries","warnings")}},indent=2))
 
 def preflight(args):
     reasons=[]; warnings=[]; config=load_config(args.config); workers=int(config.get("workers",1))
@@ -128,8 +135,9 @@ def preflight(args):
             reasons.append("parallel seed collision")
         summary=smoke(config); policy=AdditiveLUTPolicy(); policy.load_state_dict(__import__("torch").load(summary["checkpoint"],map_location="cpu",weights_only=False)["policy"])
         states,masks,domains,_=collect_states(policy,int(config.get("preflight_states",500)),seed=int(config.get("seed",1))+500)
-        q=quantization_report(policy,states,masks,domains,ROOT/"artifacts/reports/preflight_quantization.json")
-        cov=coverage_report(states,masks,ROOT/"artifacts/reports/preflight_coverage.json"); fixed_eval_manifest()
+        report_root=schema_artifacts()/"reports"; report_root.mkdir(parents=True,exist_ok=True)
+        q=quantization_report(policy,states,masks,domains,report_root/"preflight_quantization.json")
+        cov=coverage_report(states,masks,report_root/"preflight_coverage.json"); fixed_eval_manifest(schema_artifacts()/"eval/fixed_suites.json")
         bench=benchmark(float(config.get("preflight_minutes",.05)),max_battles=max(100,workers),workers=workers)
         with ShowdownBridge() as bridge: evaluation=evaluate_suites(policy,bridge,games=4,seed=99000)
         if not q["top1_agreement"]>=.99: reasons.append("real-state quantization agreement below 99%")

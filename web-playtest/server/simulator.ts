@@ -6,11 +6,14 @@ import {gunzipSync} from 'node:zlib'
 import type {ActionDiagnostic, AIDecision, BattleApiInput, BattleRequest, BattleResponse, LegalAction, Player, PolicyAsset, PublicState} from '../src/types'
 import {TEAM_FIXTURES, teamById} from '../src/data/teams'
 import {encodeRequest, featureCategories} from '../src/policy/encoder'
+import {encodeLegacyV1Request} from '../src/policy/legacyV1Encoder'
 import {FEATURE_INDEX, FEATURE_VALUES, SCHEMA_VERSION} from '../src/policy/schema'
 import {policyScores, selectTop1, validatePolicy} from '../src/policy/inference'
+import {resolveMoveSemantics} from '../src/policy/moveSemantics'
 import policy10m from '../public/policies/v1-10m.json'
 import policy50m from '../public/policies/v1-50m.json'
 import policy100m from '../public/policies/v1-100m.json'
+import v11Parity from '../public/v1-1-parity-fixtures.json'
 import {PINNED_RUNTIME_GZIP_BASE64, PINNED_RUNTIME_ID} from './generated-runtime'
 let runtimeRequire: NodeRequire | null = null
 
@@ -34,6 +37,7 @@ function getRuntimeRequire(): NodeRequire {
 let BattleStream: any
 let getPlayerStreams: any
 let Dex: any
+let Gen3Dex: any
 
 function loadPinnedSimulator(): void {
   if (BattleStream && getPlayerStreams && Dex) return
@@ -42,6 +46,7 @@ function loadPinnedSimulator(): void {
   const runtime = getRuntimeRequire()
   ;({BattleStream, getPlayerStreams} = runtime('./dist/sim/battle-stream'))
   ;({Dex} = runtime('./dist/sim/dex'))
+  Gen3Dex = Dex.mod('gen3')
 }
 
 function loadPolicies(): Record<string, PolicyAsset> {
@@ -49,6 +54,7 @@ function loadPolicies(): Record<string, PolicyAsset> {
     'v1-10m': policy10m as unknown as PolicyAsset,
     'v1-50m': policy50m as unknown as PolicyAsset,
     'v1-100m': policy100m as unknown as PolicyAsset,
+    'v1.1-parity-synthetic': v11Parity.policy as unknown as PolicyAsset,
   }
 }
 export const SIMULATOR_ID = 'pokemon-showdown@2ddfa0476f8207e12e204b1c69f7c7683b17633c/gen3customgame'
@@ -68,7 +74,7 @@ function hpBucket(condition: string): number {
 function updatePublic(player: Player, state: PublicState, line: string): void {
   const fields = line.split('|'); const command = fields[1] || ''; const opponent = player === 'p1' ? 'p2' : 'p1'
   if (['switch', 'drag', 'replace'].includes(command) && fields[2]?.startsWith(opponent)) {
-    const species = (fields[3] || '').split(',')[0]; const data = Dex.species.get(species)
+    const species = (fields[3] || '').split(',')[0]; const data = Gen3Dex.species.get(species)
     const level = Number((fields[3] || '').match(/L(\d+)/)?.[1] || 100)
     state.target = {species, hpBucket: hpBucket(fields[4] || '100/100'), status: '', types: data.types || [], estimatedSpeed: Math.floor((2 * data.baseStats.spe + 31) * level / 100) + 5}
   } else if (['-damage', '-heal'].includes(command) && fields[2]?.startsWith(opponent) && state.target) {
@@ -88,29 +94,32 @@ function safeRequest(raw: BattleRequest, visible: PublicState): BattleRequest {
       // Move requests collapse typed Hidden Power to id `hiddenpower`, while
       // the display name retains its real type and Gen 3 base power.
       const hiddenPower = /^Hidden Power ([A-Za-z]+)(?: (\d+))?$/.exec(move.move || '')
-      const data = Dex.moves.get(hiddenPower ? move.move : move.id || move.move)
+      const data = Gen3Dex.moves.get(hiddenPower ? move.move : move.id || move.move)
       const moveType = hiddenPower?.[1] || data.type
       const basePower = hiddenPower?.[2] ? Number(hiddenPower[2]) : data.basePower
-      let effectivenessBucket = 3
+      const enriched = {...move, id: data.id, type: moveType, basePower, accuracy: data.accuracy,
+        priority: data.priority, status: data.status, boosts: data.boosts, self: data.self,
+        fixedDamage: data.damage ?? (data.damageCallback ? 'callback' : undefined),
+        isDamageMove: data.category !== 'Status'}
+      let legacyEffectivenessBucket = 3
       if (visible.target?.types?.length) {
-        // A single immune defending type makes the whole attack ineffective.
-        // Using `every` here incorrectly scored Ground vs Flying/Steel as 2x
-        // because Flying's immunity was discarded and Steel's weakness remained.
-        const immune = visible.target.types.some(type => !Dex.getImmunity(moveType, type))
-        if (immune) effectivenessBucket = 0
+        // Exact contaminated training behavior, retained only for explicitly
+        // versioned historical assets. `every` is the known dual-type bug.
+        const immune = visible.target.types.every(type => !Dex.getImmunity(data.type, type))
+        if (immune) legacyEffectivenessBucket = 0
         else {
-          const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(moveType, type), 0)
-          effectivenessBucket = exponent <= -2 ? 1 : exponent === -1 ? 2 : exponent === 0 ? 3 : exponent === 1 ? 4 : 5
+          const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(data.type, type), 0)
+          legacyEffectivenessBucket = exponent <= -2 ? 1 : exponent === -1 ? 2 : exponent === 0 ? 3 : exponent === 1 ? 4 : 5
         }
       }
-      return {...move, id: data.id, type: moveType, basePower, accuracy: data.accuracy,
-        priority: data.priority, status: data.status, boosts: data.boosts, self: data.self, effectivenessBucket}
+      return {...enriched, ...resolveMoveSemantics(enriched, visible.target?.types || [], visible.target?.status || ''),
+        legacyEffectivenessBucket, legacyType: data.type, legacyBasePower: data.basePower}
     })})) || null,
     side: raw.side ? {id: raw.side.id, name: raw.side.name, pokemon: raw.side.pokemon.map(mon => ({
       ident: mon.ident, details: mon.details, condition: mon.condition, active: Boolean(mon.active), stats: mon.stats,
-      moves: (mon.moves || []).map((move: string) => Dex.moves.get(move).name || move),
-      item: mon.item ? Dex.items.get(mon.item).name || mon.item : '',
-      types: Dex.species.get(String(mon.details || '').split(',')[0]).types,
+      moves: (mon.moves || []).map((move: string) => Gen3Dex.moves.get(move).name || move),
+      item: mon.item ? Gen3Dex.items.get(mon.item).name || mon.item : '',
+      types: Gen3Dex.species.get(String(mon.details || '').split(',')[0]).types,
     }))} : undefined,
     public: structuredClone(visible),
   }
@@ -158,7 +167,9 @@ async function nextView(stream: any, player: Player, publicState: PublicState): 
 }
 
 function diagnostics(asset: PolicyAsset, request: BattleRequest): {decision: AIDecision; choice: string} {
-  const {features, mask} = encodeRequest(request); const scores = policyScores(asset, features, mask); const chosen = selectTop1(scores)
+  const legacy = asset.schema_version === 'gen3-lut-v1'
+  const {features, mask} = legacy ? encodeLegacyV1Request(request) : encodeRequest(request)
+  const scores = policyScores(asset, features, mask, legacy ? 'gen3-lut-v1' : SCHEMA_VERSION); const chosen = selectTop1(scores)
   const actions = legalActions(request, false); const byIndex = new Map(actions.map(action => [action.index, action]))
   const candidates: ActionDiagnostic[] = Array.from({length: 9}, (_, index) => {
     const action = byIndex.get(index); const row = index < 4 ? features[index] : null; const categories = row ? featureCategories(row) : null
@@ -193,7 +204,8 @@ function validateInput(input: BattleApiInput): void {
 
 export async function replayBattle(input: BattleApiInput, testTeams?: {human: Array<Record<string, unknown>>; ai: Array<Record<string, unknown>>}): Promise<BattleResponse> {
   loadPinnedSimulator()
-  validateInput(input); const asset = loadPolicies()[input.policy_id]; validatePolicy(asset)
+  validateInput(input); const asset = loadPolicies()[input.policy_id]
+  validatePolicy(asset, asset.schema_version === 'gen3-lut-v1' ? 'gen3-lut-v1' : SCHEMA_VERSION)
   const humanTeam = teamById(input.human_team_id)!; const aiTeam = teamById(input.ai_team_id)!
   const battle = new BattleStream({keepAlive: true}); const streams = getPlayerStreams(battle)
   const publicState = {p1: initialPublic(), p2: initialPublic()}; const allHumanChunks: string[] = []; const aiDecisions: AIDecision[] = []
@@ -233,7 +245,7 @@ export async function replayBattle(input: BattleApiInput, testTeams?: {human: Ar
 }
 
 function response(input: BattleApiInput, request: BattleRequest | null, legal: LegalAction[], chunks: string[], decisions: AIDecision[], terminal: boolean, winner: string | null, turn: number): BattleResponse {
-  return {battle_id: input.battle_id, seed: input.seed, simulator: SIMULATOR_ID, feature_schema: SCHEMA_VERSION, policy_id: input.policy_id,
+  return {battle_id: input.battle_id, seed: input.seed, simulator: SIMULATOR_ID, feature_schema: loadPolicies()[input.policy_id].schema_version, policy_id: input.policy_id,
     request, legal_actions: legal, public_log: publicLines(chunks), turn, ai_decisions: decisions, terminal, winner}
 }
 

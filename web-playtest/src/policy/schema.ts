@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 'gen3-lut-v1'
+export const SCHEMA_VERSION = 'gen3-lut-v1.1'
 export const FEATURE_NAMES = [
   'action_slot', 'move_role', 'move_type', 'damage_class', 'power_bucket', 'accuracy_bucket',
   'priority_bucket', 'stab', 'effectiveness', 'pp_bucket', 'user_hp', 'target_hp', 'user_status',

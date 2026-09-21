@@ -1,0 +1,169 @@
+{
+  "schema_version": "gen3-lut-v1.1",
+  "scale": 3884.510466925609,
+  "parameters": 349,
+  "bytes": 349,
+  "tables": {
+    "action_bias": {
+      "offset": 0,
+      "shape": [
+        4
+      ]
+    },
+    "feature_action_slot": {
+      "offset": 4,
+      "shape": [
+        4
+      ]
+    },
+    "feature_move_role": {
+      "offset": 8,
+      "shape": [
+        13
+      ]
+    },
+    "feature_move_type": {
+      "offset": 21,
+      "shape": [
+        18
+      ]
+    },
+    "feature_damage_class": {
+      "offset": 39,
+      "shape": [
+        3
+      ]
+    },
+    "feature_power_bucket": {
+      "offset": 42,
+      "shape": [
+        5
+      ]
+    },
+    "feature_accuracy_bucket": {
+      "offset": 47,
+      "shape": [
+        5
+      ]
+    },
+    "feature_priority_bucket": {
+      "offset": 52,
+      "shape": [
+        3
+      ]
+    },
+    "feature_stab": {
+      "offset": 55,
+      "shape": [
+        2
+      ]
+    },
+    "feature_effectiveness": {
+      "offset": 57,
+      "shape": [
+        6
+      ]
+    },
+    "feature_pp_bucket": {
+      "offset": 63,
+      "shape": [
+        5
+      ]
+    },
+    "feature_user_hp": {
+      "offset": 68,
+      "shape": [
+        5
+      ]
+    },
+    "feature_target_hp": {
+      "offset": 73,
+      "shape": [
+        5
+      ]
+    },
+    "feature_user_status": {
+      "offset": 78,
+      "shape": [
+        6
+      ]
+    },
+    "feature_target_status": {
+      "offset": 84,
+      "shape": [
+        6
+      ]
+    },
+    "feature_speed_relation": {
+      "offset": 90,
+      "shape": [
+        3
+      ]
+    },
+    "feature_can_ko": {
+      "offset": 93,
+      "shape": [
+        2
+      ]
+    },
+    "feature_damage_fraction": {
+      "offset": 95,
+      "shape": [
+        5
+      ]
+    },
+    "feature_first_turn": {
+      "offset": 100,
+      "shape": [
+        2
+      ]
+    },
+    "feature_weather": {
+      "offset": 102,
+      "shape": [
+        5
+      ]
+    },
+    "feature_stage_summary": {
+      "offset": 107,
+      "shape": [
+        5
+      ]
+    },
+    "pair_effectiveness_move_role": {
+      "offset": 112,
+      "shape": [
+        6,
+        13
+      ]
+    },
+    "pair_user_hp_move_role": {
+      "offset": 190,
+      "shape": [
+        5,
+        13
+      ]
+    },
+    "pair_target_hp_can_ko": {
+      "offset": 255,
+      "shape": [
+        5,
+        2
+      ]
+    },
+    "pair_speed_relation_can_ko": {
+      "offset": 265,
+      "shape": [
+        3,
+        2
+      ]
+    },
+    "pair_target_status_move_role": {
+      "offset": 271,
+      "shape": [
+        6,
+        13
+      ]
+    }
+  }
+}

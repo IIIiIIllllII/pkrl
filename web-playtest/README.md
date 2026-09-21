@@ -5,6 +5,12 @@ supports blind 10M/50M/100M checkpoint selection, legal moves and switches,
 turn flags, a short end survey, debug scores/features, local persistence, and
 single-battle or session JSON exports.
 
+The bundled 10M/50M/100M policies are explicitly preserved contaminated
+`gen3-lut-v1` baselines. They run through an isolated legacy encoder for
+reproducibility. The default TypeScript encoder and v1.1 parity fixtures use
+the corrected `gen3-lut-v1.1` semantics; clean playtest assets require a new
+v1.1 training run.
+
 ## Architecture and parity
 
 The browser owns the React UI, local research archive, and downloads. A
@@ -41,6 +47,9 @@ The exporter automatically locates the newest completed run containing a 100M
 checkpoint and writes the three available milestone assets plus Python parity
 fixtures. PyTorch is only an offline export dependency and is not used at web
 runtime.
+
+The exporter rejects v1 checkpoints while the active schema is v1.1. Point it
+at a completed clean v1.1 run; it will not relabel old weights.
 
 ## Local development
 

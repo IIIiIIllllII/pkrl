@@ -7,14 +7,14 @@ function at(table: number[] | number[][], ...indices: number[]): number {
   return value as number
 }
 
-export function validatePolicy(asset: PolicyAsset): void {
-  if (asset.schema_version !== SCHEMA_VERSION) throw new Error(`unsupported policy schema ${asset.schema_version}`)
+export function validatePolicy(asset: PolicyAsset, expectedSchema = SCHEMA_VERSION): void {
+  if (asset.schema_version !== expectedSchema) throw new Error(`unsupported policy schema ${asset.schema_version}; expected ${expectedSchema}`)
   if (asset.parameter_count !== 349) throw new Error(`expected 349 LUT parameters, got ${asset.parameter_count}`)
   if (!asset.tables.action_bias) throw new Error('policy is missing action_bias')
 }
 
-export function policyScores(asset: PolicyAsset, features: number[][], mask: boolean[]): Array<number | null> {
-  validatePolicy(asset)
+export function policyScores(asset: PolicyAsset, features: number[][], mask: boolean[], expectedSchema = SCHEMA_VERSION): Array<number | null> {
+  validatePolicy(asset, expectedSchema)
   const scores: Array<number | null> = Array(9).fill(0)
   for (let action = 0; action < 4; action++) {
     let score = at(asset.tables.action_bias, action)

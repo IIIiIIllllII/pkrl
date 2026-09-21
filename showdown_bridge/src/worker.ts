@@ -1,11 +1,13 @@
 /* Persistent multi-battle JSONL bridge. It intentionally never exports Battle internals. */
 import * as readline from 'node:readline';
 import * as path from 'node:path';
+import {resolveMoveSemantics} from './move-semantics';
 
 const showdownRoot = process.env.POKEMON_SHOWDOWN_ROOT || path.resolve(__dirname, '../../third_party/pokemon-showdown');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {BattleStream, getPlayerStreams} = require(path.join(showdownRoot, 'dist/sim/battle-stream'));
 const {Dex} = require(path.join(showdownRoot, 'dist/sim/dex'));
+const Gen3Dex = Dex.mod('gen3');
 
 type Player = 'p1' | 'p2';
 type PublicState = {target: null | {species: string, hpBucket: number, status: string, types: string[], estimatedSpeed: number}, weather: string, turn: number};
@@ -25,19 +27,27 @@ function safeRequest(req: any, visible: PublicState) {
     teamPreview: !!req.teamPreview,
     active: req.active ? req.active.map((active: any) => ({...active,
       moves: (active.moves || []).map((m: any) => {
-        const data = Dex.moves.get(m.id || m.move);
-        let effectivenessBucket = 3;
+        const hiddenPower = /^Hidden Power ([A-Za-z]+)(?: (\d+))?$/.exec(m.move || '');
+        const data = Gen3Dex.moves.get(hiddenPower ? m.move : m.id || m.move);
+        const moveType = hiddenPower?.[1] || data.type;
+        const basePower = hiddenPower?.[2] ? Number(hiddenPower[2]) : data.basePower;
+        const semantics = resolveMoveSemantics(Gen3Dex, data, moveType, basePower, visible.target?.types || [], visible.target?.status || '');
+        const legacyData = Dex.moves.get(m.id || m.move);
+        let legacyEffectivenessBucket = 3;
         if (visible.target?.types?.length) {
-          const immune = visible.target.types.every(type => !Dex.getImmunity(data.type, type));
-          if (immune) effectivenessBucket = 0;
+          const immune = visible.target.types.every(type => !Dex.getImmunity(legacyData.type, type));
+          if (immune) legacyEffectivenessBucket = 0;
           else {
-            const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(data.type, type), 0);
-            effectivenessBucket = exponent <= -2 ? 1 : exponent === -1 ? 2 : exponent === 0 ? 3 : exponent === 1 ? 4 : 5;
+            const exponent = visible.target.types.reduce((sum, type) => sum + Dex.getEffectiveness(legacyData.type, type), 0);
+            legacyEffectivenessBucket = exponent <= -2 ? 1 : exponent === -1 ? 2 : exponent === 0 ? 3 : exponent === 1 ? 4 : 5;
           }
         }
-        return {...m, id: data.id, type: data.type, basePower: data.basePower,
+        return {...m, id: data.id, type: moveType, basePower,
           accuracy: data.accuracy, priority: data.priority, status: data.status,
-          boosts: data.boosts, self: data.self, secondary: data.secondary, effectivenessBucket};
+          boosts: data.boosts, self: data.self, secondary: data.secondary,
+          fixedDamage: data.damage ?? (data.damageCallback ? 'callback' : undefined),
+          isDamageMove: semantics.moveClass !== 'status', legacyType: legacyData.type,
+          legacyBasePower: legacyData.basePower, legacyEffectivenessBucket, ...semantics};
       }),
     })) : null,
     side: req.side ? {
@@ -46,7 +56,7 @@ function safeRequest(req: any, visible: PublicState) {
       pokemon: (req.side.pokemon || []).map((p: any) => ({
         ident: p.ident, details: p.details, condition: p.condition,
         active: !!p.active, stats: p.stats || null, moves: p.moves || [],
-        types: Dex.species.get(String(p.details || '').split(',')[0]).types,
+        types: Gen3Dex.species.get(String(p.details || '').split(',')[0]).types,
         baseAbility: p.baseAbility || '', item: p.item || '', pokeball: p.pokeball || '',
       })),
     } : null,
@@ -84,7 +94,7 @@ function updatePublic(player: Player, state: PublicState, line: string) {
     return hp <= 0 ? 0 : hp * 4 <= max ? 1 : hp * 2 <= max ? 2 : hp * 4 <= max * 3 ? 3 : 4;
   };
   if ((cmd === 'switch' || cmd === 'drag' || cmd === 'replace') && fields[2]?.startsWith(opponent)) {
-    const species = (fields[3] || '').split(',')[0]; const dexSpecies = Dex.species.get(species);
+    const species = (fields[3] || '').split(',')[0]; const dexSpecies = Gen3Dex.species.get(species);
     const levelMatch=(fields[3] || '').match(/L(\d+)/); const level=levelMatch ? Number(levelMatch[1]) : 100;
     const estimatedSpeed=Math.floor((2*dexSpecies.baseStats.spe+31)*level/100)+5;
     state.target = {species, hpBucket: hpBucket(fields[4] || '100/100'), status: '', types: dexSpecies.types || [], estimatedSpeed};

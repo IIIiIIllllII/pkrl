@@ -24,3 +24,15 @@ def test_same_seed_is_deterministic():
     b=battle(policy,seed=4401,deterministic=True)
     assert (a[1],a[2])==(b[1],b[2])
     assert [x[2] for x in a[0]]==[x[2] for x in b[0]]
+
+def test_rollout_bridge_emits_v1_1_move_semantics():
+    own=[{"species":"Machamp","level":50,"moves":["Earthquake","Toxic","Seismic Toss","Dragon Dance"]}]
+    enemy=[{"species":"Skarmory","level":50,"moves":["Protect"]}]
+    with ShowdownBridge() as bridge:
+        bridge.send({"cmd":"reset","battle_id":"v11-semantics","format":"gen3customgame","seed":[7,8,9,10],"p1_team":own,"p2_team":enemy})
+        event=bridge.receive(lambda value:value.get("type")=="request" and value.get("player")=="p1")
+        moves={move["id"]:move for move in event["request"]["active"][0]["moves"]}
+        assert moves["earthquake"]["moveClass"] == "normal-damage" and moves["earthquake"]["effectivenessBucket"] == 0
+        assert moves["toxic"]["moveClass"] == "status" and moves["toxic"]["effectivenessBucket"] == 0
+        assert moves["seismictoss"]["moveClass"] == "fixed-damage" and moves["seismictoss"]["effectivenessBucket"] == 3
+        assert moves["dragondance"]["moveClass"] == "status" and moves["dragondance"]["effectivenessBucket"] == 3

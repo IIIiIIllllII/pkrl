@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from gen3rl.env.bridge import ShowdownBridge
-from gen3rl.policy.lut import AdditiveLUTPolicy, NumpyLUTActor
+from gen3rl.policy.lut import AdditiveLUTPolicy, NumpyLUTActor, validate_checkpoint_schema
 from gen3rl.runner import battle
 from gen3rl.teams import cartridge_match, synthetic_match
 
@@ -78,6 +78,7 @@ def _worker_main(worker_id, worker_seed, connection):
             opponent_policy=None
             if command.get("opponent_snapshot"):
                 state=torch.load(command["opponent_snapshot"],map_location="cpu",weights_only=False)
+                validate_checkpoint_schema(state,command["opponent_snapshot"])
                 opponent_policy=AdditiveLUTPolicy(); opponent_policy.load_state_dict(state["policy"]); opponent_policy.eval()
             profile={}; tick=time.perf_counter()
             traces,reward,winner,elapsed=battle(policy,seed,False,bridge=bridge,teams=command["teams"],

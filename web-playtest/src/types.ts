@@ -22,6 +22,13 @@ export interface MoveRequest {
   boosts?: Record<string, number>
   self?: {boosts?: Record<string, number>}
   effectivenessBucket?: number
+  legacyEffectivenessBucket?: number
+  legacyType?: string
+  legacyBasePower?: number
+  moveClass?: 'normal-damage' | 'fixed-damage' | 'status'
+  applicable?: boolean
+  fixedDamage?: number | string
+  isDamageMove?: boolean
 }
 
 export interface PokemonRequest {

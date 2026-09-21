@@ -1,5 +1,6 @@
 import type {BattleRequest, MoveRequest} from '../types'
 import {FEATURE_INDEX, FEATURE_NAMES, FEATURE_VALUES} from './schema'
+import {classifyMove, resolveMoveSemantics} from './moveSemantics'
 
 const STATUS_IDS: Record<string, number> = {'': 0, brn: 1, par: 2, psn: 3, tox: 3, slp: 4, frz: 5}
 const PHYSICAL = new Set(['normal', 'fighting', 'flying', 'poison', 'ground', 'rock', 'bug', 'ghost', 'steel'])
@@ -26,7 +27,7 @@ export function classifyRole(move: MoveRequest): number {
   if (id === 'batonpass') return ROLE_IDS.pivot
   if (['explosion', 'selfdestruct', 'memento'].includes(id)) return ROLE_IDS.self_ko
   if (['seismictoss', 'nightshade', 'dragonrage', 'sonicboom', 'psywave', 'superfang'].includes(id)) return ROLE_IDS.fixed
-  if ((move.basePower || 0) > 0) return ROLE_IDS.damage
+  if (classifyMove(move) === 'normal-damage') return ROLE_IDS.damage
   if (move.boosts && Object.values(move.boosts).some(value => value < 0)) return ROLE_IDS.debuff
   if (move.boosts || move.self?.boosts) return ROLE_IDS.setup
   if (move.status) return ROLE_IDS.status
@@ -54,11 +55,13 @@ export function encodeRequest(request: BattleRequest): {features: number[][]; ma
     const row = features[slot]
     row[0] = slot; row[1] = classifyRole(move); row[2] = FEATURE_VALUES.move_type.indexOf(type)
     if (row[2] < 0) row[2] = 17
-    row[3] = power <= 0 ? 2 : PHYSICAL.has(type) ? 0 : SPECIAL.has(type) ? 1 : 0
+    const moveClass = classifyMove(move)
+    row[3] = moveClass === 'status' ? 2 : PHYSICAL.has(type) ? 0 : SPECIAL.has(type) ? 1 : 0
     row[4] = powerBucket(power); row[5] = accuracyBucket(move.accuracy)
     row[6] = (move.priority || 0) < 0 ? 0 : (move.priority || 0) > 0 ? 2 : 1
     row[7] = Number((own.types || []).some(value => value.toLowerCase() === type))
-    row[8] = Number(move.effectivenessBucket ?? 3); row[9] = ppBucket(Number(pp || 0))
+    row[8] = resolveMoveSemantics(move, target?.types || [], target?.status || '').effectivenessBucket
+    row[9] = ppBucket(Number(pp || 0))
     row[10] = hpBucket(hp, maxHp); row[11] = Number(target?.hpBucket ?? 4)
     row[12] = STATUS_IDS[status] || 0; row[13] = STATUS_IDS[target?.status || ''] || 0
     row[14] = speed; row[15] = 0; row[16] = 0; row[17] = Number((request.public?.turn || 0) <= 1)

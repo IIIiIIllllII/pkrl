@@ -1,0 +1,624 @@
+{
+  "states": 500,
+  "legal_move_candidates": 1964,
+  "thresholds": {
+    "frequent": ">=100",
+    "rare": "1-99",
+    "never": "0"
+  },
+  "visited_entries": 213,
+  "frequent_entries": 70,
+  "rare_entries": 143,
+  "unvisited_entries": 136,
+  "critical_state_counts": {
+    "4x_effectiveness": 5,
+    "quarter_effectiveness": 21,
+    "immunity": 95,
+    "low_hp_recovery": 9,
+    "low_hp_self_ko": 0,
+    "speed_ties": 48,
+    "status_on_statused_target": 30,
+    "weather": 84,
+    "setup": 145,
+    "phazing": 80,
+    "fixed_damage": 92,
+    "self_ko": 14,
+    "reflect_state": null,
+    "light_screen_state": null,
+    "spikes_state": null
+  },
+  "schema_gaps": [
+    "reflect_state",
+    "light_screen_state",
+    "spikes_state"
+  ],
+  "tables": {
+    "action_bias": {
+      "counts": [
+        500,
+        499,
+        483,
+        482
+      ],
+      "frequent": 4,
+      "rare": 0,
+      "never": 0
+    },
+    "feature_action_slot": {
+      "counts": {
+        "0": 500,
+        "1": 499,
+        "2": 483,
+        "3": 482
+      },
+      "frequent": 4,
+      "rare": 0,
+      "never": 0
+    },
+    "feature_move_role": {
+      "counts": {
+        "damage": 832,
+        "status": 108,
+        "setup": 145,
+        "debuff": 89,
+        "recovery": 93,
+        "protect": 71,
+        "weather": 52,
+        "field": 10,
+        "phaze": 80,
+        "pivot": 16,
+        "self_ko": 14,
+        "fixed": 92,
+        "utility": 362
+      },
+      "frequent": 4,
+      "rare": 9,
+      "never": 0
+    },
+    "feature_move_type": {
+      "counts": {
+        "normal": 692,
+        "fire": 87,
+        "water": 107,
+        "electric": 86,
+        "grass": 88,
+        "ice": 77,
+        "fighting": 70,
+        "poison": 35,
+        "ground": 86,
+        "flying": 57,
+        "psychic": 281,
+        "bug": 3,
+        "rock": 88,
+        "ghost": 58,
+        "dragon": 34,
+        "dark": 78,
+        "steel": 14,
+        "unknown": 23
+      },
+      "frequent": 3,
+      "rare": 15,
+      "never": 0
+    },
+    "feature_damage_class": {
+      "counts": {
+        "physical": 502,
+        "special": 436,
+        "status": 1026
+      },
+      "frequent": 3,
+      "rare": 0,
+      "never": 0
+    },
+    "feature_power_bucket": {
+      "counts": {
+        "zero": 1135,
+        "1_40": 255,
+        "41_70": 220,
+        "71_100": 325,
+        "101_plus": 29
+      },
+      "frequent": 4,
+      "rare": 1,
+      "never": 0
+    },
+    "feature_accuracy_bucket": {
+      "counts": {
+        "always": 636,
+        "1_70": 80,
+        "71_85": 190,
+        "86_99": 210,
+        "100": 848
+      },
+      "frequent": 4,
+      "rare": 1,
+      "never": 0
+    },
+    "feature_priority_bucket": {
+      "counts": {
+        "negative": 83,
+        "zero": 1754,
+        "positive": 127
+      },
+      "frequent": 2,
+      "rare": 1,
+      "never": 0
+    },
+    "feature_stab": {
+      "counts": {
+        "no": 1055,
+        "yes": 909
+      },
+      "frequent": 2,
+      "rare": 0,
+      "never": 0
+    },
+    "feature_effectiveness": {
+      "counts": {
+        "immune": 95,
+        "quarter": 21,
+        "half": 144,
+        "neutral": 1608,
+        "double": 91,
+        "quadruple": 5
+      },
+      "frequent": 2,
+      "rare": 4,
+      "never": 0
+    },
+    "feature_pp_bucket": {
+      "counts": {
+        "empty": 24,
+        "1_4": 0,
+        "5_9": 92,
+        "10_19": 469,
+        "20_plus": 1379
+      },
+      "frequent": 2,
+      "rare": 2,
+      "never": 1
+    },
+    "feature_user_hp": {
+      "counts": {
+        "fainted": 0,
+        "quarter": 288,
+        "half": 328,
+        "three_quarters": 398,
+        "full": 950
+      },
+      "frequent": 4,
+      "rare": 0,
+      "never": 1
+    },
+    "feature_target_hp": {
+      "counts": {
+        "fainted": 0,
+        "quarter": 171,
+        "half": 218,
+        "three_quarters": 258,
+        "full": 1317
+      },
+      "frequent": 4,
+      "rare": 0,
+      "never": 1
+    },
+    "feature_user_status": {
+      "counts": {
+        "none": 1864,
+        "brn": 0,
+        "par": 12,
+        "psn": 20,
+        "slp": 68,
+        "frz": 0
+      },
+      "frequent": 1,
+      "rare": 3,
+      "never": 2
+    },
+    "feature_target_status": {
+      "counts": {
+        "none": 1794,
+        "brn": 96,
+        "par": 14,
+        "psn": 24,
+        "slp": 36,
+        "frz": 0
+      },
+      "frequent": 1,
+      "rare": 4,
+      "never": 1
+    },
+    "feature_speed_relation": {
+      "counts": {
+        "slower": 1147,
+        "tie": 48,
+        "faster": 769
+      },
+      "frequent": 2,
+      "rare": 1,
+      "never": 0
+    },
+    "feature_can_ko": {
+      "counts": {
+        "no": 1964,
+        "yes": 0
+      },
+      "frequent": 1,
+      "rare": 0,
+      "never": 1
+    },
+    "feature_damage_fraction": {
+      "counts": {
+        "none": 1964,
+        "quarter": 0,
+        "half": 0,
+        "three_quarters": 0,
+        "ko": 0
+      },
+      "frequent": 1,
+      "rare": 0,
+      "never": 4
+    },
+    "feature_first_turn": {
+      "counts": {
+        "no": 1679,
+        "yes": 285
+      },
+      "frequent": 2,
+      "rare": 0,
+      "never": 0
+    },
+    "feature_weather": {
+      "counts": {
+        "none": 1880,
+        "sun": 24,
+        "rain": 24,
+        "sand": 20,
+        "hail": 16
+      },
+      "frequent": 1,
+      "rare": 4,
+      "never": 0
+    },
+    "feature_stage_summary": {
+      "counts": {
+        "minus2": 0,
+        "minus1": 0,
+        "zero": 1964,
+        "plus1": 0,
+        "plus2": 0
+      },
+      "frequent": 1,
+      "rare": 0,
+      "never": 4
+    },
+    "pair_effectiveness_move_role": {
+      "counts": [
+        [
+          31,
+          42,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          21,
+          0
+        ],
+        [
+          21,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          137,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          7,
+          0,
+          0
+        ],
+        [
+          547,
+          66,
+          145,
+          89,
+          93,
+          71,
+          52,
+          10,
+          80,
+          16,
+          6,
+          71,
+          362
+        ],
+        [
+          91,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "frequent": 4,
+      "rare": 18,
+      "never": 56
+    },
+    "pair_user_hp_move_role": {
+      "counts": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          141,
+          11,
+          23,
+          16,
+          9,
+          15,
+          8,
+          2,
+          8,
+          2,
+          0,
+          6,
+          47
+        ],
+        [
+          139,
+          18,
+          25,
+          12,
+          11,
+          8,
+          12,
+          0,
+          13,
+          4,
+          1,
+          16,
+          69
+        ],
+        [
+          166,
+          21,
+          39,
+          7,
+          27,
+          15,
+          14,
+          2,
+          10,
+          4,
+          3,
+          14,
+          76
+        ],
+        [
+          386,
+          58,
+          58,
+          54,
+          46,
+          33,
+          18,
+          6,
+          49,
+          6,
+          10,
+          56,
+          170
+        ]
+      ],
+      "frequent": 5,
+      "rare": 45,
+      "never": 15
+    },
+    "pair_target_hp_can_ko": {
+      "counts": [
+        [
+          0,
+          0
+        ],
+        [
+          171,
+          0
+        ],
+        [
+          218,
+          0
+        ],
+        [
+          258,
+          0
+        ],
+        [
+          1317,
+          0
+        ]
+      ],
+      "frequent": 4,
+      "rare": 0,
+      "never": 6
+    },
+    "pair_speed_relation_can_ko": {
+      "counts": [
+        [
+          1147,
+          0
+        ],
+        [
+          48,
+          0
+        ],
+        [
+          769,
+          0
+        ]
+      ],
+      "frequent": 2,
+      "rare": 1,
+      "never": 3
+    },
+    "pair_target_status_move_role": {
+      "counts": [
+        [
+          790,
+          78,
+          134,
+          89,
+          72,
+          56,
+          50,
+          9,
+          78,
+          16,
+          12,
+          60,
+          350
+        ],
+        [
+          17,
+          16,
+          7,
+          0,
+          14,
+          15,
+          2,
+          1,
+          2,
+          0,
+          1,
+          21,
+          0
+        ],
+        [
+          10,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          6,
+          0,
+          0,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          6,
+          6
+        ],
+        [
+          15,
+          6,
+          4,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          5,
+          4
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "frequent": 3,
+      "rare": 34,
+      "never": 41
+    }
+  },
+  "warnings": [
+    "low_hp_self_ko",
+    "reflect_state",
+    "light_screen_state",
+    "spikes_state"
+  ]
+}

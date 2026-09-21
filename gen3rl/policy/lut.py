@@ -3,6 +3,13 @@ import torch
 from torch import nn
 from gen3rl.features.schema import FEATURE_SPECS, FEATURE_INDEX, PAIR_SPECS, MOVE_ACTIONS, parameter_count
 import numpy as np
+from gen3rl.features.schema import SCHEMA_VERSION
+
+def validate_checkpoint_schema(state, source="checkpoint"):
+    actual=state.get("metadata",{}).get("feature_schema_version")
+    if actual != SCHEMA_VERSION:
+        raise ValueError(f"{source} uses feature schema {actual!r}; expected {SCHEMA_VERSION}. "
+                         "v1 weights are not compatible with v1.1 semantics")
 
 class AdditiveLUTPolicy(nn.Module):
     """No hidden layers: every move logit is exactly a sum of table entries."""

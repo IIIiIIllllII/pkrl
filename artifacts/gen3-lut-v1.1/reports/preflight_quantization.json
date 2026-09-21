@@ -1,0 +1,17 @@
+{
+  "real_states": 500,
+  "source_battles": null,
+  "top1_agreement": 1.0,
+  "action_ranking_disagreements": 0,
+  "score_mae": 0.0002461350696453806,
+  "max_score_error": 0.0010656048287087522,
+  "float_tie_rate": 0.0,
+  "quantized_tie_rate": 0.016,
+  "tie_rate_change": 0.016,
+  "disagreements_by_move_role": {},
+  "disagreements_by_feature_bucket": {},
+  "domains": {
+    "cartridge-validation": 327,
+    "synthetic": 173
+  }
+}

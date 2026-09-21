@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 from gen3rl.policy.lut import AdditiveLUTPolicy
 from gen3rl.export.lut import export_policy, integer_score
-from gen3rl.features.schema import FEATURE_SPECS
+from gen3rl.features.schema import FEATURE_SPECS, SCHEMA_VERSION
 
 def test_export_integer_bounds(tmp_path: Path):
     _,q=export_policy(AdditiveLUTPolicy(),tmp_path)
@@ -26,9 +26,20 @@ def test_generated_c_uses_wide_accumulator_and_explicit_saturation(tmp_path: Pat
     export_policy(AdditiveLUTPolicy(),tmp_path)
     source=(tmp_path/'generated/battle_ai_rl_lut.c').read_text()
     assert 'int32_t s=' in source and 'if(s>32767)' in source and 'if(s<-32768)' in source
+    assert f'#define RL_FEATURE_SCHEMA "{SCHEMA_VERSION}"' in (tmp_path/'generated/battle_ai_rl_lut.h').read_text()
+    assert '#define RL_FEATURE_SCHEMA_REVISION 101' in (tmp_path/'generated/battle_ai_rl_lut.h').read_text()
 
 def test_pokeemerald_wrapper_clamps_before_narrowing():
     root=Path(__file__).resolve().parents[1]
     source=(root/'third_party/pokeemerald/src/battle_ai_rl.c').read_text()
     assert 's32 value;' in source
     assert 'moveScores[slot] = (s8)value;' in source
+
+def test_pokeemerald_v1_1_encoder_has_class_specific_effectiveness():
+    root=Path(__file__).resolve().parents[1]
+    source=(root/'third_party/pokeemerald/src/battle_ai_rl.c').read_text()
+    assert 'if (moveClass == 0) return chart;' in source
+    assert 'if (moveClass == 1) return chart == 0 ? 0 : 3;' in source
+    assert 'StatusMoveApplicable(move, moveType, target) ? 3 : 0' in source
+    assert 'MOVE_THUNDER_WAVE' in source and 'MOVE_LEECH_SEED' in source
+    assert 'RL_FEATURE_SCHEMA_REVISION != 101' in source

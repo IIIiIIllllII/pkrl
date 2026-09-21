@@ -1,0 +1,225 @@
+{
+  "workers": 24,
+  "active_battles": 24,
+  "battles": 100,
+  "completed_battles": 100,
+  "decisions": 958,
+  "wall_seconds": 1.952130241001214,
+  "battles_per_second": 51.226090298520106,
+  "decisions_per_second": 490.7459450598226,
+  "per_worker_battles_per_second": 2.1344204291050044,
+  "per_worker_throughput": {
+    "3": {
+      "battles": 21,
+      "decisions": 194,
+      "worker_wall_seconds": 0.9661900910014083,
+      "battles_per_second": 21.734853416095934,
+      "decisions_per_second": 200.78864584393386
+    },
+    "7": {
+      "battles": 18,
+      "decisions": 195,
+      "worker_wall_seconds": 0.9794427990036638,
+      "battles_per_second": 18.377796047212215,
+      "decisions_per_second": 199.09279051146567
+    },
+    "21": {
+      "battles": 16,
+      "decisions": 173,
+      "worker_wall_seconds": 0.9727952670000377,
+      "battles_per_second": 16.447448443434276,
+      "decisions_per_second": 177.8380362946331
+    },
+    "13": {
+      "battles": 15,
+      "decisions": 153,
+      "worker_wall_seconds": 0.9700788979989738,
+      "battles_per_second": 15.462659821733249,
+      "decisions_per_second": 157.71913018167913
+    },
+    "9": {
+      "battles": 11,
+      "decisions": 90,
+      "worker_wall_seconds": 0.9626173769993329,
+      "battles_per_second": 11.427177882752497,
+      "decisions_per_second": 93.49509176797498
+    },
+    "8": {
+      "battles": 1,
+      "decisions": 9,
+      "worker_wall_seconds": 1.1109658690002107,
+      "battles_per_second": 0.9001176614902923,
+      "decisions_per_second": 8.10105895341263
+    },
+    "18": {
+      "battles": 1,
+      "decisions": 8,
+      "worker_wall_seconds": 1.1824079799989704,
+      "battles_per_second": 0.8457317752548242,
+      "decisions_per_second": 6.765854202038594
+    },
+    "4": {
+      "battles": 1,
+      "decisions": 5,
+      "worker_wall_seconds": 1.2345210459989175,
+      "battles_per_second": 0.810030742886887,
+      "decisions_per_second": 4.050153714434435
+    },
+    "12": {
+      "battles": 1,
+      "decisions": 4,
+      "worker_wall_seconds": 1.3123550029995386,
+      "battles_per_second": 0.7619889417988157,
+      "decisions_per_second": 3.047955767195263
+    },
+    "14": {
+      "battles": 1,
+      "decisions": 8,
+      "worker_wall_seconds": 1.328300016000867,
+      "battles_per_second": 0.7528419693998915,
+      "decisions_per_second": 6.022735755199132
+    },
+    "2": {
+      "battles": 1,
+      "decisions": 6,
+      "worker_wall_seconds": 1.3487749979994987,
+      "battles_per_second": 0.7414135059466543,
+      "decisions_per_second": 4.448481035679926
+    },
+    "20": {
+      "battles": 1,
+      "decisions": 22,
+      "worker_wall_seconds": 1.3684540029989876,
+      "battles_per_second": 0.7307516349168368,
+      "decisions_per_second": 16.076535968170408
+    },
+    "19": {
+      "battles": 1,
+      "decisions": 6,
+      "worker_wall_seconds": 1.424609880999924,
+      "battles_per_second": 0.7019465562727298,
+      "decisions_per_second": 4.211679337636379
+    },
+    "6": {
+      "battles": 1,
+      "decisions": 4,
+      "worker_wall_seconds": 1.484778901000027,
+      "battles_per_second": 0.6735009497551998,
+      "decisions_per_second": 2.6940037990207992
+    },
+    "5": {
+      "battles": 1,
+      "decisions": 4,
+      "worker_wall_seconds": 1.509773170999324,
+      "battles_per_second": 0.6623511526159235,
+      "decisions_per_second": 2.649404610463694
+    },
+    "1": {
+      "battles": 1,
+      "decisions": 13,
+      "worker_wall_seconds": 1.5186986169992451,
+      "battles_per_second": 0.658458491241582,
+      "decisions_per_second": 8.559960386140565
+    },
+    "23": {
+      "battles": 1,
+      "decisions": 7,
+      "worker_wall_seconds": 1.5655790900000284,
+      "battles_per_second": 0.638741285181563,
+      "decisions_per_second": 4.471188996270941
+    },
+    "0": {
+      "battles": 1,
+      "decisions": 4,
+      "worker_wall_seconds": 1.5782355880000978,
+      "battles_per_second": 0.633618965130026,
+      "decisions_per_second": 2.534475860520104
+    },
+    "11": {
+      "battles": 1,
+      "decisions": 5,
+      "worker_wall_seconds": 1.5866763630001515,
+      "battles_per_second": 0.6302482493084852,
+      "decisions_per_second": 3.1512412465424258
+    },
+    "15": {
+      "battles": 1,
+      "decisions": 11,
+      "worker_wall_seconds": 1.588056961998518,
+      "battles_per_second": 0.6297003343894746,
+      "decisions_per_second": 6.926703678284221
+    },
+    "10": {
+      "battles": 1,
+      "decisions": 11,
+      "worker_wall_seconds": 1.6299040610010707,
+      "battles_per_second": 0.6135330440159834,
+      "decisions_per_second": 6.748863484175818
+    },
+    "22": {
+      "battles": 1,
+      "decisions": 11,
+      "worker_wall_seconds": 1.6357215449988871,
+      "battles_per_second": 0.6113509986204164,
+      "decisions_per_second": 6.724860984824581
+    },
+    "17": {
+      "battles": 1,
+      "decisions": 9,
+      "worker_wall_seconds": 1.6425239000000147,
+      "battles_per_second": 0.6088191471673509,
+      "decisions_per_second": 5.479372324506158
+    },
+    "16": {
+      "battles": 1,
+      "decisions": 6,
+      "worker_wall_seconds": 1.6456467260013596,
+      "battles_per_second": 0.6076638346492683,
+      "decisions_per_second": 3.64598300789561
+    }
+  },
+  "mean_battle_decisions": 9.58,
+  "node_worker_count": 24,
+  "python_worker_count": 24,
+  "worker_startup_seconds": 0.11825054099972476,
+  "worker_crash_restart_count": 0,
+  "illegal_actions": 0,
+  "rollout_queue_wait_seconds": 1.6074950029887987,
+  "policy_sync_seconds": 0.02362317999904917,
+  "timing_seconds": {
+    "simulation": 25.175310428000003,
+    "ipc_estimate": 7.017915543086573,
+    "feature_extraction": 0.06871660997421714,
+    "policy_inference": 0.13661629198759329,
+    "rollout_assembly": 0.020852843999819015,
+    "ppo_update": 0.005070103999969433
+  },
+  "fractions": {
+    "simulation": 0.7764290750101545,
+    "ipc_bridge": 0.21643878788313994,
+    "feature_extraction": 0.0021192816697416,
+    "policy_inference": 0.004213368551009798,
+    "rollout_assembly": 0.0006431203469929474,
+    "ppo": 0.00015636653896125498
+  },
+  "cpu": {
+    "logical_cpus": 8,
+    "system_utilization_percent": 92.53058596265294,
+    "learner_process_cpu_seconds": 2.914251
+  },
+  "ram": {
+    "system_total_mib": 31599.9765625,
+    "system_available_mib": 15354.76953125,
+    "sampled_process_rss_mib": 14341.109375,
+    "sampled_process_pss_mib": 3849.2216796875
+  },
+  "gpu": null,
+  "device_microbenchmark": [
+    {
+      "device": "cpu",
+      "batch_size": 2048,
+      "iterations": 10,
+      "seconds": 0.052846234999378794
+    }
+  ]
+}

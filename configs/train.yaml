@@ -10,6 +10,6 @@ ppo: {epochs: 4, minibatch: 256, gamma: 0.99, gae_lambda: 0.95, clip: 0.2, entro
 reward: {terminal: true, faint: 0.0, hp_delta: 0.0}
 self_play: {random: 0.15, heuristic: 0.35, historical: 0.5, snapshot_interval: 10}
 team_distribution: {cartridge: 0.7, synthetic: 0.3, competitive: 0.0}
-feature_schema: gen3-lut-v1
+feature_schema: gen3-lut-v1.1
 checkpoint_interval: 10
 evaluation_interval: 10

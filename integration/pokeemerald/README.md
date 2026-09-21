@@ -8,6 +8,12 @@ The working integration is applied directly to `third_party/pokeemerald`:
 - hook in `src/battle_ai_script_commands.c`
 - generated LUT under `src/data/battle_ai_rl_lut.{h,c}`
 
+The tracked patch retains the historical v1 LUT for reproducibility and marks
+it revision 100. The corrected adapter requires revision 101 and therefore
+fails compilation until the files from a clean `gen3-lut-v1.1` export replace
+the historical generated LUT. This prevents accidental deployment of v1
+weights under v1.1 semantics.
+
 Only normal trainer singles are eligible. Existing switch/item decisions, legality
 filtering, special battles, doubles, and the vanilla scripts remain intact.
 

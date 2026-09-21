@@ -2,6 +2,7 @@ from __future__ import annotations
 import re
 import numpy as np
 from .schema import FEATURE_SPECS, TYPE_NAMES, MoveRole, gen3_damage_class, hp_bucket, power_bucket, accuracy_bucket, pp_bucket
+from .move_semantics import MoveClass, VARIABLE_DAMAGE_MOVES, classify_move, effectiveness_feature
 
 STATUS_IDS = {"": 0, "brn": 1, "par": 2, "psn": 3, "tox": 3, "slp": 4, "frz": 5}
 
@@ -21,7 +22,7 @@ def classify_role(move: dict) -> int:
     if mid in {"batonpass"}: return MoveRole.PIVOT
     if mid in {"explosion", "selfdestruct", "memento"}: return MoveRole.SELF_KO
     if mid in {"seismictoss", "nightshade", "dragonrage", "sonicboom", "psywave", "superfang"}: return MoveRole.FIXED
-    if (move.get("basePower") or 0) > 0: return MoveRole.DAMAGE
+    if (move.get("basePower") or 0) > 0 or move.get("isDamageMove") is True or mid in VARIABLE_DAMAGE_MOVES: return MoveRole.DAMAGE
     boosts=move.get("boosts") or {}
     if boosts and any(int(v)<0 for v in boosts.values()): return MoveRole.DEBUFF
     if boosts or move.get("self", {}).get("boosts"): return MoveRole.SETUP
@@ -53,11 +54,14 @@ def encode_request(request: dict) -> tuple[np.ndarray, np.ndarray]:
         power = int(move.get("basePower", move.get("basePowerCallback", 0)) or 0)
         row = out[slot]
         row[0] = slot; row[1] = int(classify_role(move)); row[2] = TYPE_NAMES.index(mtype) if mtype in TYPE_NAMES else 17
-        try: row[3] = int(gen3_damage_class(mtype, power))
+        move_class = classify_move(move)
+        try: row[3] = int(gen3_damage_class(mtype, power if move_class == MoveClass.STATUS else max(power, 1)))
         except ValueError: row[3] = 2 if power <= 0 else 0
         row[4] = power_bucket(power); row[5] = accuracy_bucket(move.get("accuracy", True))
         priority = int(move.get("priority", 0)); row[6] = 0 if priority < 0 else 2 if priority > 0 else 1
-        row[7] = int(mtype in {str(t).lower() for t in own.get("types", [])}); row[8] = int(move.get("effectivenessBucket", 3)); row[9] = pp_bucket(int(move_pp or 0))
+        row[7] = int(mtype in {str(t).lower() for t in own.get("types", [])})
+        row[8] = int(effectiveness_feature(move, target.get("types") or [], target_status))
+        row[9] = pp_bucket(int(move_pp or 0))
         row[10] = hp_bucket(hp, max_hp); row[11] = int(target.get("hpBucket", 4)); row[12] = STATUS_IDS.get(status, 0)
         row[13] = STATUS_IDS.get(target_status, 0); row[14] = speed_relation; row[15] = 0; row[16] = 0
         row[17] = int(int(public.get("turn", 0)) <= 1); row[18] = weather; row[19] = 2

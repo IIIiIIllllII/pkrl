@@ -29,7 +29,7 @@ def export_policy(policy, output=Path("artifacts")):
     manifest={"schema_version":SCHEMA_VERSION,"scale":scale,"parameters":len(flat),"bytes":len(flat),"tables":offsets}
     (output/"lut_manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
     enums="\n".join(f"#define RL_FEATURE_{s.name.upper()} {i}" for i,s in enumerate(FEATURE_SPECS))
-    (generated/"battle_ai_rl_lut.h").write_text("""#ifndef GUARD_BATTLE_AI_RL_LUT_H\n#define GUARD_BATTLE_AI_RL_LUT_H\n#include <stdint.h>\n#define RL_FEATURE_COUNT %d\n#define RL_LUT_PARAMETERS %d\n%s\nextern const int8_t gBattleAiRlLut[RL_LUT_PARAMETERS];\nvoid BattleAiRlScore(const uint8_t features[4][RL_FEATURE_COUNT], int16_t scores[4]);\n#endif\n"""%(len(FEATURE_SPECS),len(flat),enums))
+    (generated/"battle_ai_rl_lut.h").write_text("""#ifndef GUARD_BATTLE_AI_RL_LUT_H\n#define GUARD_BATTLE_AI_RL_LUT_H\n#include <stdint.h>\n#define RL_FEATURE_SCHEMA \"%s\"\n#define RL_FEATURE_SCHEMA_REVISION 101\n#define RL_FEATURE_COUNT %d\n#define RL_LUT_PARAMETERS %d\n%s\nextern const int8_t gBattleAiRlLut[RL_LUT_PARAMETERS];\nvoid BattleAiRlScore(const uint8_t features[4][RL_FEATURE_COUNT], int16_t scores[4]);\n#endif\n"""%(SCHEMA_VERSION,len(FEATURE_SPECS),len(flat),enums))
     terms=[]
     for i,s in enumerate(FEATURE_SPECS): terms.append(f"gBattleAiRlLut[{offsets['feature_'+s.name]['offset']} + features[m][{i}]]")
     for a,b in PAIR_SPECS:
@@ -38,4 +38,3 @@ def export_policy(policy, output=Path("artifacts")):
     data=",".join(map(str,flat)); expr=" + ".join(terms)
     (generated/"battle_ai_rl_lut.c").write_text(f'''#include "battle_ai_rl_lut.h"\nconst int8_t gBattleAiRlLut[RL_LUT_PARAMETERS] = {{{data}}};\nvoid BattleAiRlScore(const uint8_t f[4][RL_FEATURE_COUNT], int16_t out[4]) {{\n  for (unsigned m=0;m<4;m++) {{ int32_t s=gBattleAiRlLut[m] + {expr.replace('features','f')};\n    if(s>32767)s=32767; if(s<-32768)s=-32768; out[m]=(int16_t)s; }}\n}}\n''')
     return manifest,q
-

@@ -17,6 +17,8 @@ dist/
 /web-playtest/server/generated-runtime.ts
 /artifacts/checkpoints/
 /artifacts/runs/
+/artifacts/gen3-lut-v1.1/checkpoints/
+/20260919-173958/
 artifacts/battles/
 artifacts/datasets/
 artifacts/coverage/*.jsonl

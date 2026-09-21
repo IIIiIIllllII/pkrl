@@ -44,6 +44,6 @@ early_stop:
   max_consecutive_empty_battles: 10
   minimum_decisions_per_second: 100
   evaluation_collapse_win_rate: 0.05
-feature_schema: gen3-lut-v1
+feature_schema: gen3-lut-v1.1
 preflight_minutes: 0.05
 preflight_states: 500

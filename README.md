@@ -5,6 +5,10 @@ persistent JSONL worker, trains a directly exportable additive lookup-table
 policy with masked PPO, quantizes it, generates C, verifies exact host-C parity,
 and hooks move scoring into the official pokeemerald decomp.
 
+The current clean feature schema is `gen3-lut-v1.1` (349 parameters). The
+completed v1 100M run is preserved but is a contaminated historical baseline;
+see `docs/contamination_audit.md` and `docs/schema_v1_1.md`.
+
 No ROM or baserom is included or downloaded.
 
 ## Quick start
@@ -84,7 +88,7 @@ Inspect `artifacts/reports/scaling_summary.json`, then start the 100-million
 decision run with its `recommended_workers` value:
 
 ```bash
-.venv/bin/python -m gen3rl.cli train --config configs/train_vast_16vcpu_100m.yaml --workers RECOMMENDED_WORKERS
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 .venv/bin/python -m gen3rl.cli train --config configs/train_v1_1_100m.yaml
 ```
 
 Resume from the newest recovery or milestone checkpoint without changing the
