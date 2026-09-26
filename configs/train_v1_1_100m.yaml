@@ -47,3 +47,6 @@ early_stop:
 feature_schema: gen3-lut-v1.1
 preflight_minutes: 0.05
 preflight_states: 500
+benchmark_min_decisions_per_second: 4500
+benchmark_decisions: 32768
+# Always initialize fresh; old gen3-lut-v1 checkpoints are rejected.

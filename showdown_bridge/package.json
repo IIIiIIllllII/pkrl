@@ -6,6 +6,5 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/worker.js"
   },
-  "devDependencies": {"typescript": "^5.8.3"}
+  "devDependencies": {"typescript": "5.8.3"}
 }
-

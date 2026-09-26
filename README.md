@@ -1,5 +1,11 @@
 # Pokémon Gen 3 RL → GBA Battle AI LUT
 
+The authoritative reboot workflow is [the v1.1 runbook](docs/reboot_runbook.md).
+Use `bash scripts/bootstrap.sh`, then `bash scripts/preflight.sh`. Long training
+requires a successful gate for the exact clean commit/config/runtime. The old
+v1 100M run and earlier provisional v1.1 smoke checkpoints cannot initialize
+the audited run. Do not infer readiness from historical validation reports.
+
 This project controls the official Pokémon Showdown Gen 3 simulator through one
 persistent JSONL worker, trains a directly exportable additive lookup-table
 policy with masked PPO, quantizes it, generates C, verifies exact host-C parity,
