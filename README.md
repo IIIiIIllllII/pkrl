@@ -1,113 +1,65 @@
 # Pokémon Gen 3 RL → GBA Battle AI LUT
 
-The authoritative reboot workflow is [the v1.1 runbook](docs/reboot_runbook.md).
-Use `bash scripts/bootstrap.sh`, then `bash scripts/preflight.sh`. Long training
-requires a successful gate for the exact clean commit/config/runtime. The old
-v1 100M run and earlier provisional v1.1 smoke checkpoints cannot initialize
-the audited run. Do not infer readiness from historical validation reports.
+The audited schema is `gen3-lut-v1.1`, with Python as the reference and 349
+policy parameters. The old v1 100M run is a contaminated historical baseline;
+it and provisional v1.1 checkpoints are rejected as clean starting points.
 
-This project controls the official Pokémon Showdown Gen 3 simulator through one
-persistent JSONL worker, trains a directly exportable additive lookup-table
-policy with masked PPO, quantizes it, generates C, verifies exact host-C parity,
-and hooks move scoring into the official pokeemerald decomp.
+Use the [reproducible runbook](docs/reboot_runbook.md) and
+[reboot validation report](docs/reboot_validation.md). Long training requires
+a successful preflight for the exact clean commit, configuration and runtime.
+The local laptop benchmark is intentionally not the borrowed training-host
+benchmark; correctness is complete and only that host-capacity measurement is
+pending.
 
-The current clean feature schema is `gen3-lut-v1.1` (349 parameters). The
-completed v1 100M run is preserved but is a contaminated historical baseline;
-see `docs/contamination_audit.md` and `docs/schema_v1_1.md`.
-
-No ROM or baserom is included or downloaded.
-
-## Quick start
-
-Python 3.11+ and Node 22.18+ are required. The bootstrap performed for this
-checkout uses a project-local npm CLI because the host image supplied Node
-without npm.
+With Node 22.23.2, uv 0.12.9, Git, make and host C/C++ compilers installed:
 
 ```bash
-uv sync --extra train --extra test
-uv run python -m gen3rl.cli bootstrap
-uv run python -m gen3rl.cli doctor
-uv run python -m gen3rl.cli smoke
+bash scripts/bootstrap.sh
+bash scripts/preflight.sh --config configs/train_v1_1_100m.yaml
 ```
 
-`bootstrap` checks out the pinned upstream revisions and idempotently applies
-the tracked pokeemerald integration patch required by the test suite.
+Bootstrap provisions Python 3.12.13 and locked dependencies, checks out pinned
+Showdown/pokeemerald revisions, applies tracked ROM integration, generates
+required host headers, extracts trainers and builds the bridge and web app.
 
-Training, evaluation, export, and parity:
-
-```bash
-uv run python -m gen3rl.cli train --config configs/train.yaml
-uv run python -m gen3rl.cli evaluate --checkpoint artifacts/checkpoints/smoke.pt
-uv run python -m gen3rl.cli export-lut --checkpoint artifacts/checkpoints/smoke.pt
-uv run python -m gen3rl.cli verify-parity
-```
-
-Extract the checked-out cartridge trainers with:
-
-```bash
-uv run python -m gen3rl.cli extract-trainers
-```
-
-Official upstreams live under `third_party/pokemon-showdown` and
-`third_party/pokeemerald`; exact revisions are in `docs/decisions.md`. Generated
-LUTs are in `artifacts/generated`, checkpoints in `artifacts/checkpoints`, and
-trainer JSONL in `artifacts/teams`.
-
-The GBA build additionally requires pokeemerald's documented agbcc or modern
-devkitARM toolchain and a legally obtained local `baserom.gba`. Their absence
-does not affect simulation, training, export, or host parity.
-
-## Human v1 web playtest
-
-The Vercel-ready human-vs-LUT research app is documented in
-[`web-playtest/README.md`](web-playtest/README.md). It uses the pinned simulator,
-frozen 10M/50M/100M assets, request-only observations, structured JSON logging,
-blind checkpoint tests, and local browser storage. It does not start training.
-
-## Long-run preparation
-
-```bash
-.venv/bin/python -m gen3rl.cli benchmark --minutes 10
-.venv/bin/python -m gen3rl.cli preflight --config configs/train_2080ti_24h.yaml
-.venv/bin/python -m gen3rl.cli train --config configs/train_2080ti_24h.yaml
-```
-
-Each training invocation creates `artifacts/runs/YYYYMMDD-HHMMSS` with its
-resolved config, source metadata, JSONL metrics, evaluations, and checkpoints.
-Resume without resetting counters, schedules, optimizer state, or RNG state:
-
-```bash
-.venv/bin/python -m gen3rl.cli train --config configs/train_2080ti_24h.yaml --resume artifacts/runs/RUN_ID/checkpoints/final.pt
-```
-
-## Vast.ai / 16-vCPU workflow
-
-The rollout learner supports process-parallel simulation. Each Python rollout
-worker owns one persistent Node BattleStream process; PPO remains synchronous
-and runs only in the main process. Do not assume every visible CPU should be a
-worker—measure the rented host and use the reported recommendation.
+For a quick local functional check after bootstrap:
 
 ```bash
 .venv/bin/python -m gen3rl.cli doctor
-.venv/bin/python -m gen3rl.cli preflight --config configs/train_vast_16vcpu_100m.yaml
-.venv/bin/python -m gen3rl.cli benchmark-scaling --workers 1,2,4,8,12,16 --minutes-per-setting 3
+.venv/bin/python -m gen3rl.cli smoke --config configs/smoke.yaml
+.venv/bin/python -m gen3rl.cli verify-parity
 ```
 
-Inspect `artifacts/reports/scaling_summary.json`, then start the 100-million
-decision run with its `recommended_workers` value:
+A bounded benchmark of the actual synchronous PPO training path:
 
 ```bash
-OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 .venv/bin/python -m gen3rl.cli train --config configs/train_v1_1_100m.yaml
+bash scripts/benchmark_real_train.sh --config configs/train_v1_1_100m.yaml --decisions 32768
 ```
 
-Resume from the newest recovery or milestone checkpoint without changing the
-selected worker count:
+No long training is launched by bootstrap, tests, preflight or the benchmark.
+The runbook contains the guarded command that would start clean 100M training
+and the separate whole-run checkpoint recovery procedure.
+
+The normal evaluation/export commands remain available for a schema-compatible
+checkpoint:
 
 ```bash
-.venv/bin/python -m gen3rl.cli train --config configs/train_vast_16vcpu_100m.yaml --workers RECOMMENDED_WORKERS --resume artifacts/runs/RUN_ID/checkpoints/safety_1000000.pt
+.venv/bin/python -m gen3rl.cli evaluate --checkpoint CHECKPOINT.pt
+.venv/bin/python -m gen3rl.cli export-lut --checkpoint CHECKPOINT.pt
 ```
 
-The run keeps permanent milestone checkpoints through 100M decisions and only
-the three newest rolling safety checkpoints. Quick fixed-seed evaluations run
-at non-milestone 1M intervals; larger fixed-seed evaluations run at major
-milestones. No provider credentials or ROM assets are required by this flow.
+The learner is synchronous and process-parallel: the proven clean-run settings
+are 24 workers, 4096 decisions per rollout generation, four PPO epochs,
+minibatches of 1024, CPU learning and one PyTorch thread. The old v1 100M
+checkpoint, old web policies, and ignored historical run remain available only
+as explicitly contaminated baselines; none can initialize v1.1 training.
+
+- [Schema and represented mechanics](docs/schema_v1_1.md)
+- [Initial repository audit](docs/reboot_audit.md)
+- [ROM integration and host parity](integration/pokeemerald/README.md)
+- [Historical human web playtest](web-playtest/README.md)
+- [Old-run contamination analysis](docs/contamination_audit.md)
+
+No ROM or baserom is included or downloaded. ROM/emulator validation requires
+a separate legal ROM and GBA toolchain; host-C parity covers the encoder and
+integer scorer. Historical web policies remain explicitly labeled v1.

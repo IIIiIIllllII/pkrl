@@ -1,5 +1,11 @@
 # V1.1 pre-training validation
 
+Historical provisional validation, superseded by
+[the reboot report](reboot_validation.md). Its READY claim does not authorize
+the audited v1.1 run; provisional checkpoints are rejected. The reboot report
+separates completed correctness/reproducibility work from the laptop-only
+training-host performance measurement.
+
 Validated on 2026-09-22 without starting a long run:
 
 - Python: 60 tests passed.
