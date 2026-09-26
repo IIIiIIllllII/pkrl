@@ -67,6 +67,10 @@ def bootstrap(_):
             raise RuntimeError("pinned Showdown has tracked local modifications; preserve them in Git before bootstrap")
         revisions[name]=revision
     patch_status=install_pokeemerald_integration(third/"pokeemerald")
+    # Host adapter tests include global.h, which requires this generated map
+    # header even without a ROM build. Build only the upstream host utility.
+    run(["make","-C","tools/mapjson"],third/"pokeemerald")
+    run(["tools/mapjson/mapjson","groups","emerald","data/maps/map_groups.json","data/maps","include/constants"],third/"pokeemerald")
     npm=shutil.which("npm")
     if npm and run([npm,"--version"]).stdout.strip()!="11.6.0": npm=None
     local_npm=third/"npm/bin/npm-cli.js"

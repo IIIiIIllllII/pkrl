@@ -5,7 +5,7 @@ preflight; copy the entire run directory for recovery. Never copy a patch only
 to a cloud machine. The ignored historical v1 run and frozen v1 web policies
 are contaminated research baselines, never clean initial weights.
 
-Runtime: Linux, Git, a host C compiler, Python **3.12.13**, Node **22.23.2**,
+Runtime: Linux, Git, make, host C/C++ compilers, Python **3.12.13**, Node **22.23.2**,
 uv **0.12.9**, npm **11.6.0**. Bootstrap uses uv to provision Python and a pinned
 local npm if needed. Install Node and uv at these versions before bootstrap.
 Python dependencies are resolved by `uv.lock` with `uv sync --locked`:
