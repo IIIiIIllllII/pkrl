@@ -14,4 +14,11 @@ else
   if [[ ! -f "$npm_cli" ]]; then npm_cli=third_party/npm/package/bin/npm-cli.js; fi
   node "$npm_cli" ci --prefix web-playtest
 fi
+(
+  cd web-playtest
+  node scripts/embed-simulator.mjs
+  ./node_modules/.bin/esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs
+  node node_modules/typescript/bin/tsc -b
+  node node_modules/vite/bin/vite.js build
+)
 .venv/bin/python -m gen3rl.cli doctor

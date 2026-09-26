@@ -39,14 +39,20 @@ def main():
         from gen3rl.cli import UPSTREAMS
         for name,_,revision in UPSTREAMS:
             if commit(ROOT/"third_party"/name)!=revision: reasons.append(name+" revision mismatch")
+        if subprocess.run(["git","diff","--quiet","HEAD"],cwd=ROOT/"third_party/pokemon-showdown").returncode:
+            reasons.append("Showdown has tracked local modifications")
         if sys.version.split()[0]!=(ROOT/".python-version").read_text().strip(): reasons.append("Python runtime mismatch")
         if subprocess.check_output(["node","--version"],text=True).strip()!="v"+(ROOT/".node-version").read_text().strip(): reasons.append("Node runtime mismatch")
         if subprocess.check_output(["git","status","--porcelain"],cwd=ROOT,text=True).strip(): reasons.append("working tree is dirty")
         check("bridge_build",["node",str(ROOT/"third_party/pokemon-showdown/node_modules/typescript/bin/tsc"),"-p","showdown_bridge/tsconfig.json"])
         check("python_full_suite_including_C_and_privacy",[sys.executable,"-m","pytest","-o","addopts=","-q"])
         check("web_simulator_embed",["node","scripts/embed-simulator.mjs"],ROOT/"web-playtest")
+        check("web_server_bundle",["./node_modules/.bin/esbuild","server/simulator.ts","--bundle","--platform=node","--format=cjs","--target=node22","--outfile=server-dist/simulator.cjs"],ROOT/"web-playtest")
+        if subprocess.run(["git","diff","--quiet","--","web-playtest/server-dist/simulator.cjs"],cwd=ROOT).returncode:
+            reasons.append("committed web server bundle was stale")
         check("typescript_parity_and_web_tests",["node","node_modules/vitest/vitest.mjs","run"],ROOT/"web-playtest")
         check("typescript_build",["node","node_modules/typescript/bin/tsc","-b"],ROOT/"web-playtest")
+        check("web_production_build",["node","node_modules/vite/bin/vite.js","build"],ROOT/"web-playtest")
         from gen3rl.eval.reports import collect_states,coverage_report
         from gen3rl.policy.lut import AdditiveLUTPolicy
         from gen3rl.export.lut import export_policy

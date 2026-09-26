@@ -63,6 +63,8 @@ def bootstrap(_):
             if dirty:
                 raise RuntimeError(f"{name} has local changes and is not at pinned revision {revision}")
             run(["git","checkout","--detach",revision],checkout)
+        if name=="pokemon-showdown" and run(["git","diff","--quiet","HEAD"],checkout,check=False).returncode:
+            raise RuntimeError("pinned Showdown has tracked local modifications; preserve them in Git before bootstrap")
         revisions[name]=revision
     patch_status=install_pokeemerald_integration(third/"pokeemerald")
     npm=shutil.which("npm")
@@ -87,8 +89,10 @@ def bootstrap(_):
 
 def doctor(_):
     import numpy, yaml
+    npm=shutil.which("npm")
+    npm_cmd=[npm] if npm else next((["node",str(path)] for path in (ROOT/"third_party/npm/bin/npm-cli.js",ROOT/"third_party/npm/package/bin/npm-cli.js") if path.exists()),None)
     checks={"python":sys.version.split()[0],"numpy":numpy.__version__,"pyyaml":yaml.__version__,
-            "node":run(["node","--version"]).stdout.strip(),"npm": "local 11.6.0" if (ROOT/"third_party/npm/bin/npm-cli.js").exists() else "missing",
+            "node":run(["node","--version"]).stdout.strip(),"npm":run(npm_cmd+["--version"]).stdout.strip() if npm_cmd else "missing",
             "showdown_checkout":(ROOT/"third_party/pokemon-showdown").is_dir(),"showdown_dist":(ROOT/"third_party/pokemon-showdown/dist/sim/battle-stream.js").exists(),
             "bridge":(ROOT/"showdown_bridge/dist/worker.js").exists(),"pokeemerald":(ROOT/"third_party/pokeemerald").is_dir(),
             "host_cc":shutil.which("cc"),"gba_cc":shutil.which("arm-none-eabi-gcc"),"write_access":os.access(ROOT,os.W_OK)}
@@ -99,7 +103,9 @@ def doctor(_):
     try:
         with ShowdownBridge() as b: b.send({"cmd":"ping"}); checks["battle_stream_ping"]=b.receive()["type"]=="pong"
     except Exception as e: checks["battle_stream_ping"]=f"failed: {e}"
-    print(json.dumps(checks,indent=2)); return 0 if all(v is not False for v in checks.values()) else 1
+    required=("showdown_checkout","showdown_dist","bridge","pokeemerald","host_cc","write_access","battle_stream_ping")
+    ok=all(bool(checks[k]) for k in required) and checks["battle_stream_ping"] is True and checks["npm"]!="missing" and not checks["torch"].startswith("missing")
+    print(json.dumps(checks,indent=2)); return 0 if ok else 1
 
 def extract_trainers(_):
     from gen3rl.extract.trainers import extract; records=extract(); print(json.dumps({"trainers":len(records),"output":"artifacts/teams/pokeemerald_trainers.jsonl"}))

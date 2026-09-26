@@ -30,6 +30,15 @@ describe('stateless pinned simulator', () => {
     expect(body).toMatchObject({battle_id: 'test-battle', feature_schema: 'gen3-lut-v1', terminal: false})
   })
 
+  it('the deployed server bundle matches current v1.1 TypeScript inference', async () => {
+    const input = {...base, policy_id: 'v1.1-parity-synthetic', human_choices: ['move 1']}
+    const response = await battleHandler.fetch(new Request('https://playtest.example/api/battle', {
+      method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(input),
+    }))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(await replayBattle(input))
+  })
+
   it('is deterministic and never returns an illegal AI action', async () => {
     const first = await replayBattle(base); const second = await replayBattle(base)
     expect(first).toEqual(second); expect(first.terminal).toBe(false); expect(first.legal_actions.length).toBeGreaterThan(0)
