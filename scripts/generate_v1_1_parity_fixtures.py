@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import copy
 from pathlib import Path
 
 import numpy as np
 import torch
 
-from gen3rl.export.lut import collect
+from gen3rl.export.lut import collect, quantize, integer_score
 from gen3rl.features.encoder import encode_request
-from gen3rl.features.schema import FEATURE_SPECS, PAIR_SPECS, SCHEMA_VERSION
+from gen3rl.features.schema import FEATURE_SPECS, FEATURE_INDEX, PAIR_SPECS, SCHEMA_VERSION
+from gen3rl.features.move_semantics import classify_move, effectiveness_feature, MoveClass
 from gen3rl.policy.lut import AdditiveLUTPolicy, NumpyLUTActor
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -56,13 +59,49 @@ def main():
       "inference":"float32-additive-lut-argmax","switch_logits":"neutral-zero-v1","parameter_count":sum(v.size for v in tables.values()),
       "feature_sizes":{s.name:s.size for s in FEATURE_SPECS},"pair_specs":[list(x) for x in PAIR_SPECS],
       "tables":{k:np.asarray(v,dtype=np.float32).tolist() for k,v in tables.items()}}
-    fixtures=[]
-    for name,species,types,moves in CASES:
-        req=request(species,types,moves); features,mask=encode_request(req); scores=actor.logits(features,mask)
+    fixtures=[]; quantized,scale=quantize(tables)
+    offsets={}; offset=0
+    for key,table in tables.items(): offsets[key]=offset; offset+=table.size
+    catalog=json.loads(subprocess.check_output(["node",str(ROOT/"scripts/export_move_catalog.cjs")],text=True))
+    cases=list(CASES)
+    for move in catalog:
+        for types in (["Normal"],["Ghost","Steel"],["Water","Ground"]):
+            cases.append((move["id"]+" vs "+"/".join(types),"fixture",types,[move]))
+    def append(name,req):
+        types=req["public"]["target"]["types"]; moves=req["active"][0]["moves"]
+        features,mask=encode_request(req); scores=actor.logits(features,mask) if mask.any() else np.full(9,-np.inf)
+        ints=np.zeros(9,dtype=np.int32); ints[:4]=integer_score(quantized,features)
+        activated=[]
+        for i,row in enumerate(features[:4]):
+            ids=[i]+[offsets["feature_"+s.name]+int(row[j]) for j,s in enumerate(FEATURE_SPECS)]
+            ids += [offsets[f"pair_{a}_{b}"]+int(row[FEATURE_INDEX[a]])*FEATURE_SPECS[FEATURE_INDEX[b]].size+int(row[FEATURE_INDEX[b]]) for a,b in PAIR_SPECS]
+            activated.append(ids)
         fixtures.append({"name":name,"request":req,"resolved_defender_types":types,"features":features.tolist(),"legal_mask":mask.tolist(),
-          "scores":[None if not np.isfinite(x) else float(x) for x in scores],"selected_action":int(np.argmax(scores))})
+          "activated_feature_ids":activated,
+          "move_semantics":[{"move_class":("normal-damage","fixed-damage","status")[int(classify_move(m))],
+            "applicable":effectiveness_feature(m,types,req["public"]["target"]["status"])!=0,
+            "effectiveness_bucket":int(effectiveness_feature(m,types,req["public"]["target"]["status"]))} for m in moves],
+          "integer_scores":[int(x) if mask[i] else None for i,x in enumerate(ints)],
+          "integer_selected_action":int(np.argmax(np.where(mask,ints,-32769))) if mask.any() else None,
+          "scores":[None if not np.isfinite(x) else float(x) for x in scores],"selected_action":int(np.argmax(scores)) if mask.any() else None})
+    for name,species,types,moves in cases: append(name,request(species,types,moves))
+    base=request("fixture",["Ghost","Steel"],[next(m for m in catalog if m["id"]==mid) for mid in ("toxic","dreameater","nightmare","protect")])
+    for hp in (0,1,25,26,50,51,75,76,100):
+        req=copy.deepcopy(base); req["side"]["pokemon"][0]["condition"]=f"{hp}/100"
+        append(f"hp boundary {hp}",req)
+    for status in ("brn","par","psn","tox","slp","frz"):
+        req=copy.deepcopy(base); req["public"]["target"]["status"]=status
+        append(f"target status {status}",req)
+    for mode in ("forced","trapped","maybeTrapped","disabled","empty_pp","wait","teamPreview"):
+        req=copy.deepcopy(base)
+        if mode=="forced": req["forceSwitch"]=[True]
+        elif mode in {"trapped","maybeTrapped"}: req["active"][0][mode]=True
+        elif mode in {"wait","teamPreview"}: req[mode]=True
+        else:
+            for m in req["active"][0]["moves"]: m["disabled" if mode=="disabled" else "pp"]=True if mode=="disabled" else 0
+        append(mode,req)
     output=ROOT/"web-playtest/public/v1-1-parity-fixtures.json"
-    output.write_text(json.dumps({"schema_version":SCHEMA_VERSION,"policy":asset,"fixtures":fixtures},indent=2)+"\n")
+    output.write_text('{"schema_version":'+json.dumps(SCHEMA_VERSION)+',"quantization_scale":'+str(scale)+',"policy":'+json.dumps(asset,separators=(",",":"))+',"fixtures":[\n'+",\n".join(json.dumps(f,separators=(",",":")) for f in fixtures)+"]}\n")
     print(output)
 
 if __name__ == "__main__": main()

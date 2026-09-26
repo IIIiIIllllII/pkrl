@@ -43,7 +43,7 @@ function safeRequest(req: any, visible: PublicState) {
           }
         }
         return {...m, id: data.id, type: moveType, basePower,
-          accuracy: data.accuracy, priority: data.priority, status: data.status,
+          accuracy: data.accuracy, priority: data.priority, status: data.status, target: data.target,
           boosts: data.boosts, self: data.self, secondary: data.secondary,
           fixedDamage: data.damage ?? (data.damageCallback ? 'callback' : undefined),
           isDamageMove: semantics.moveClass !== 'status', legacyType: legacyData.type,
@@ -97,7 +97,7 @@ function updatePublic(player: Player, state: PublicState, line: string) {
     const species = (fields[3] || '').split(',')[0]; const dexSpecies = Gen3Dex.species.get(species);
     const levelMatch=(fields[3] || '').match(/L(\d+)/); const level=levelMatch ? Number(levelMatch[1]) : 100;
     const estimatedSpeed=Math.floor((2*dexSpecies.baseStats.spe+31)*level/100)+5;
-    state.target = {species, hpBucket: hpBucket(fields[4] || '100/100'), status: '', types: dexSpecies.types || [], estimatedSpeed};
+    state.target = {species, hpBucket: hpBucket(fields[4] || '100/100'), status: (fields[4] || '').split(' ')[1] || '', types: dexSpecies.types || [], estimatedSpeed};
   } else if ((cmd === '-damage' || cmd === '-heal') && fields[2]?.startsWith(opponent) && state.target) {
     state.target.hpBucket = hpBucket(fields[3] || '');
     const status = (fields[3] || '').split(' ')[1]; if (status) state.target.status = status;

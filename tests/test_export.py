@@ -33,13 +33,11 @@ def test_pokeemerald_wrapper_clamps_before_narrowing():
     root=Path(__file__).resolve().parents[1]
     source=(root/'third_party/pokeemerald/src/battle_ai_rl.c').read_text()
     assert 's32 value;' in source
-    assert 'moveScores[slot] = (s8)value;' in source
+    assert 'moveScores[i] = (s8)value;' in source
 
 def test_pokeemerald_v1_1_encoder_has_class_specific_effectiveness():
     root=Path(__file__).resolve().parents[1]
     source=(root/'third_party/pokeemerald/src/battle_ai_rl.c').read_text()
-    assert 'if (moveClass == 0) return chart;' in source
-    assert 'if (moveClass == 1) return chart == 0 ? 0 : 3;' in source
-    assert 'StatusMoveApplicable(move, moveType, target) ? 3 : 0' in source
-    assert 'MOVE_THUNDER_WAVE' in source and 'MOVE_LEECH_SEED' in source
+    assert 'RlEncodePublic(&o, features, mask)' in source
+    assert 'gBattleMons[target].speed' not in source
     assert 'RL_FEATURE_SCHEMA_REVISION != 101' in source

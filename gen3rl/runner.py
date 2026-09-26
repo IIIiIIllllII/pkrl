@@ -1,11 +1,13 @@
 from __future__ import annotations
 import hashlib, json, random, subprocess, time, uuid, signal
+import os, sys, importlib.metadata
+import copy
 from pathlib import Path
 import numpy as np
 import torch
 from gen3rl.env.bridge import ShowdownBridge, DEFAULT_TEAM
 from gen3rl.features.encoder import encode_request
-from gen3rl.features.schema import FEATURE_SPECS, FEATURE_INDEX, PAIR_SPECS, SCHEMA_VERSION
+from gen3rl.features.schema import FEATURE_SPECS, FEATURE_INDEX, PAIR_SPECS, SCHEMA_VERSION, SEMANTICS_REVISION
 from gen3rl.policy.lut import AdditiveLUTPolicy,NumpyLUTActor,validate_checkpoint_schema
 from gen3rl.rl.ppo import PPOTrainer, compute_gae
 from gen3rl.export.lut import export_policy
@@ -30,14 +32,27 @@ def commit(path):
 
 def metadata(config, seed):
     encoded=json.dumps(config,sort_keys=True).encode()
-    return {"python_seed":seed,"numpy_seed":seed,"torch_seed":seed,"showdown_seed":[seed,seed+1,seed+2,seed+3],
+    return {"python_seed":seed,"numpy_seed":seed,"torch_seed":seed,"showdown_seed":showdown_seed(seed),
             "config_hash":hashlib.sha256(encoded).hexdigest(),"feature_schema_version":SCHEMA_VERSION,
+            "semantics_revision":SEMANTICS_REVISION,
+            "python_version":sys.version,"dependencies":{name:importlib.metadata.version(name) for name in ("torch","numpy","PyYAML")},
+            "torch_build":torch.__version__,"logical_cpus":os.cpu_count(),
+            "lock_sha256":{name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in ("uv.lock","web-playtest/package-lock.json")},
+            "node_version":subprocess.check_output(["node","--version"],text=True).strip(),
+            "workers":int(config.get("workers",1)),"device":str(config.get("device","cpu")),
+            "torch_threads":torch.get_num_threads(),"torch_interop_threads":torch.get_num_interop_threads(),
+            "thread_environment":{k:os.environ.get(k) for k in ("OMP_NUM_THREADS","MKL_NUM_THREADS","OPENBLAS_NUM_THREADS")},
+            "git_dirty":bool(subprocess.check_output(["git","status","--porcelain"],cwd=ROOT,text=True).strip()),
             "pokemon_showdown_commit":commit(ROOT/"third_party/pokemon-showdown"),
             "pokeemerald_commit":commit(ROOT/"third_party/pokeemerald"),"project_commit":commit(ROOT)}
 
+def showdown_seed(seed):
+    digest=hashlib.sha256(f"gen3rl-showdown-v1.1:{int(seed)}".encode()).digest()[:8]
+    return [int.from_bytes(digest[i:i+2],"big") for i in range(0,8,2)]
+
 def battle(policy, seed=1, deterministic=False, max_decisions=300, bridge=None, teams=None,
            opponent="damage", profile=None, opponent_policy=None, actor=None, battle_id=None):
-    seed4=[seed & 65535,(seed+1)&65535,(seed+2)&65535,(seed+3)&65535]
+    seed4=showdown_seed(seed)
     traces=[]; started=time.perf_counter(); winner=None; battle_id=battle_id or f"b-{seed}-{uuid.uuid4().hex[:8]}"
     own_bridge=bridge is None; bridge=bridge or ShowdownBridge(); teams=teams or (DEFAULT_TEAM,DEFAULT_TEAM)
     waiting=feature_time=inference_time=worker_time=0.0
@@ -156,6 +171,24 @@ def _batch_episode(trainer,traces,reward,gamma=.99,lam=.95):
 def _weighted_choice(rng, weights):
     names=list(weights); values=[float(weights[n]) for n in names]; return rng.choices(names,weights=values,k=1)[0]
 
+def _batch_generation(trainer, episodes, gamma, lam, profile):
+    tick=time.perf_counter()
+    traces=[trace for episode,_ in episodes for trace in episode]
+    profile["concatenation_seconds"]=time.perf_counter()-tick; tick=time.perf_counter()
+    arrays=(np.stack([x[0] for x in traces]),np.stack([x[1] for x in traces]),
+            np.asarray([x[2] for x in traces],dtype=np.int64),np.asarray([x[3] for x in traces],dtype=np.float32))
+    profile["numpy_construction_seconds"]=time.perf_counter()-tick; tick=time.perf_counter()
+    f,m,a,lp=[torch.from_numpy(x) for x in arrays]
+    profile["numpy_to_torch_seconds"]=time.perf_counter()-tick; tick=time.perf_counter()
+    with torch.no_grad(): values=trainer.value(f[:,:4,:].reshape(len(f),-1).float().to(trainer.device)).cpu()
+    rewards=torch.zeros(len(f)); dones=torch.zeros(len(f)); offset=0
+    for episode,reward in episodes:
+        offset+=len(episode); rewards[offset-1]=reward; dones[offset-1]=1
+    profile["tensor_construction_seconds"]=time.perf_counter()-tick; tick=time.perf_counter()
+    adv,ret=compute_gae(rewards,values,dones,gamma,lam)
+    profile["gae_seconds"]=time.perf_counter()-tick
+    return f,m,a,lp,ret,adv
+
 def evaluate_suites(policy, bridge, games=100, seed=10_000):
     from gen3rl.features.schema import MoveRole
     results={}
@@ -181,6 +214,9 @@ def train_run(config, resume=None):
     from contextlib import ExitStack
     from gen3rl.parallel import RolloutPool, validate_policy_versions
     validate_schema_config(config)
+    if int(config.get("max_decisions",0))>100000:
+        from gen3rl.preflight import require_preflight
+        require_preflight(config)
     configure_torch_threads(config)
     seed=int(config.get("seed",31173)); random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     workers=int(config.get("workers",1))
@@ -188,15 +224,21 @@ def train_run(config, resume=None):
     policy=AdditiveLUTPolicy(); ppo=config.get("ppo",{}); trainer=PPOTrainer(policy,len(FEATURE_SPECS),lr=float(config.get("learning_rate",3e-4)),
         clip=float(ppo.get("clip",.2)),entropy_coef=float(ppo.get("entropy",.01)),value_coef=float(ppo.get("value",.5)),
         gradient_clip=float(ppo.get("gradient_clip",.5)),device=device)
-    stamp=time.strftime("%Y%m%d-%H%M%S"); run_dir=ROOT/"artifacts/runs"/SCHEMA_VERSION/stamp
+    stamp=time.strftime("%Y%m%d-%H%M%S")+"-"+uuid.uuid4().hex[:6]; run_dir=ROOT/"artifacts/runs"/SCHEMA_VERSION/stamp
     counters={"decisions":0,"battles":0,"updates":0,"policy_version":0,"illegal_actions":0,"elapsed_seconds":0.0}; opponent_paths=[]
     if resume:
         state=trainer.load(resume); counters.update(state.get("counters",{})); opponent_paths=state.get("opponent_pool",[])
+        for key in ("seed","workers","rollout_size","ppo","reward","opponent_mixture","team_distribution","feature_schema"):
+            if state["config"].get(key)!=config.get(key): raise ValueError(f"resume changes training contract: {key}")
+        opponent_paths=[str(Path(resume).resolve().parent/Path(p).name) for p in opponent_paths]
+        if any(not Path(p).exists() for p in opponent_paths): raise ValueError("resume opponent pool is incomplete; copy the entire run directory")
         counters["policy_version"]=int(counters.get("policy_version",counters["updates"]))
         run_dir=Path(resume).resolve().parents[1]
     run_dir.mkdir(parents=True,exist_ok=True); (run_dir/"checkpoints").mkdir(exist_ok=True); (run_dir/"evaluations").mkdir(exist_ok=True)
     (run_dir/"resolved_config.json").write_text(json.dumps(config,indent=2,sort_keys=True)+"\n"); (run_dir/"source_metadata.json").write_text(json.dumps(metadata(config,seed),indent=2)+"\n")
     metrics_path=run_dir/"metrics.jsonl"; rng=random.Random(seed+counters["battles"]); profile={}; start=time.perf_counter()
+    if resume and trainer.training_state.get("sampling_rng"):
+        rng.setstate(trainer.training_state["sampling_rng"])
     max_decisions=int(config.get("max_decisions",100_000)); rollout_size=int(config.get("rollout_size",2048))
     checkpoints=sorted(int(x) for x in config.get("checkpoint_decisions",[50_000,100_000,250_000,500_000,1_000_000,2_000_000,5_000_000]))
     milestone_evaluations=sorted(int(x) for x in config.get("milestone_evaluation_decisions",config.get("evaluation_decisions",checkpoints)))
@@ -207,11 +249,21 @@ def train_run(config, resume=None):
     opponent_weights=config.get("opponent_mixture",config.get("self_play",{"random":.2,"damage":.5,"historical":.3}))
     initial=torch.cat([x.detach().cpu().flatten() for x in policy.parameters()]).clone(); interrupted=False; failure=None
     safety=config.get("early_stop",{}); empty_battles=0; rate_ema=None; battle_rate_ema=None
+    if resume:
+        empty_battles=trainer.training_state.get("empty_battles",0)
+        rate_ema=trainer.training_state.get("rate_ema")
+        battle_rate_ema=trainer.training_state.get("battle_rate_ema")
+    rollback=None
     try:
       with ExitStack() as stack:
        eval_bridge=stack.enter_context(ShowdownBridge())
        pool=stack.enter_context(RolloutPool(workers,seed,timeout=float(config.get("worker_timeout",60)))) if workers>1 else None
        while counters["decisions"]<max_decisions:
+        # A failed/interrupting minibatch cannot leave counters ahead of an
+        # incompletely updated policy. Recovery checkpoints are generation boundaries.
+        rollback={"policy":copy.deepcopy(policy.state_dict()),"value":copy.deepcopy(trainer.value.state_dict()),
+            "optimizer":copy.deepcopy(trainer.optimizer.state_dict()),"step":trainer.step,"counters":dict(counters),
+            "rng":(random.getstate(),np.random.get_state(),torch.get_rng_state(),rng.getstate())}
         batches=[]; returns=[]; rollout_steps=0; rollout_start=time.perf_counter(); generation_metrics={}
         if pool is not None:
             results,generation_metrics=pool.collect(policy,counters["policy_version"],counters["battles"],domain_weights,opponent_weights,
@@ -225,8 +277,8 @@ def train_run(config, resume=None):
                     empty_battles+=1
                     if empty_battles>=int(safety.get("max_consecutive_empty_battles",10)): raise RuntimeError("early-stop: repeated empty battles")
                     continue
-                empty_battles=0; batches.append(_batch_episode(trainer,traces,reward,float(ppo.get("gamma",.99)),float(ppo.get("gae_lambda",.95)))
-                ); returns.append(reward); rollout_steps+=len(traces); counters["decisions"]+=len(traces)
+                empty_battles=0; batches.append((traces,reward))
+                returns.append(reward); rollout_steps+=len(traces); counters["decisions"]+=len(traces)
                 for key,value in result["profile"].items(): profile[key]=profile.get(key,0)+value
                 counters["illegal_actions"]+=int(result.get("illegal_actions",0))
         else:
@@ -244,17 +296,20 @@ def train_run(config, resume=None):
                     empty_battles+=1
                     if empty_battles>=int(safety.get("max_consecutive_empty_battles",10)): raise RuntimeError("early-stop: repeated empty battles")
                     continue
-                empty_battles=0; batches.append(_batch_episode(trainer,traces,reward,float(ppo.get("gamma",.99)),float(ppo.get("gae_lambda",.95)))
-                ); returns.append(reward); rollout_steps+=len(traces); counters["decisions"]+=len(traces); counters["battles"]+=1
+                empty_battles=0; batches.append((traces,reward))
+                returns.append(reward); rollout_steps+=len(traces); counters["decisions"]+=len(traces); counters["battles"]+=1
             generation_metrics={"policy_version":counters["policy_version"],"policy_sync_seconds":0.0,
                 "rollout_wall_seconds":time.perf_counter()-rollout_start,"queue_wait_seconds":profile.get("bridge_wait_seconds",0),
                 "battles":len(batches),"decisions":rollout_steps,"per_worker":{"0":{"battles":len(batches),"decisions":rollout_steps}},
                 "worker_restarts":0,"worker_startup_seconds":0.0}
         if not batches: raise RuntimeError("no battles completed during rollout")
-        assembly_start=time.perf_counter(); joined=[torch.cat([b[i] for b in batches]) for i in range(6)]; aggregation_seconds=time.perf_counter()-assembly_start
+        assembly_start=time.perf_counter(); preprocessing={}
+        joined=_batch_generation(trainer,batches,float(ppo.get("gamma",.99)),float(ppo.get("gae_lambda",.95)),preprocessing)
+        aggregation_seconds=time.perf_counter()-assembly_start
         profile["assembly_seconds"]=profile.get("assembly_seconds",0)+aggregation_seconds
         update_start=time.perf_counter(); stats=trainer.update(*joined,epochs=int(ppo.get("epochs",1)),minibatch_size=int(ppo.get("minibatch",len(joined[0])))); profile["ppo_seconds"]=profile.get("ppo_seconds",0)+time.perf_counter()-update_start
         counters["updates"]+=1; counters["policy_version"]+=1; counters["elapsed_seconds"]+=time.perf_counter()-rollout_start
+        rollback=None; metrics_start=time.perf_counter()
         params=torch.cat([x.detach().cpu().flatten() for x in policy.parameters()]); changed=int(torch.count_nonzero(params!=initial)); entropy=stats.entropy
         if counters["illegal_actions"]: raise RuntimeError(f"early-stop: {counters['illegal_actions']} illegal actions")
         if not np.isfinite(list(stats.__dict__.values())).all(): raise FloatingPointError("non-finite training metric")
@@ -276,14 +331,20 @@ def train_run(config, resume=None):
           "decisions_per_second":measured_rate,"decisions_per_second_ema":rate_ema,"battles_per_second_ema":battle_rate_ema,"mean_return":float(np.mean(returns)),
           "lut_parameters_changed":changed,"gradient_table_ratio":coverage_ratio,"device":device,
           "per_worker_throughput":generation_metrics.get("per_worker",{}),"rollout_queue_wait_seconds":generation_metrics.get("queue_wait_seconds",0),
-          "learner_idle_fraction":generation_metrics.get("queue_wait_seconds",0)/rollout_wall,
-          "worker_idle_fraction":max(0.0,1-worker_busy/max(workers*rollout_wall,1e-9)),
+          "learner_idle_fraction":generation_metrics.get("queue_wait_seconds",0)/max(time.perf_counter()-rollout_start,1e-9),
+          "worker_idle_fraction":max(0.0,1-worker_busy/max(workers*(time.perf_counter()-rollout_start),1e-9)),
+          "preprocessing":preprocessing,"ppo_profile":trainer.profile,
+          "rollout_dispatch_seconds":generation_metrics.get("dispatch_seconds",0),
+          "rollout_wall_seconds":rollout_wall,
           "policy_sync_seconds":generation_metrics.get("policy_sync_seconds",0),"rollout_aggregation_seconds":aggregation_seconds,
           "eta_next_checkpoint_seconds":max(0,next_checkpoint-counters["decisions"])/max(rate_ema,1e-9),
           "eta_final_seconds":max(0,max_decisions-counters["decisions"])/max(rate_ema,1e-9),**stats.__dict__}
         with metrics_path.open("a") as f: f.write(json.dumps(row)+"\n")
         print(json.dumps({k:row[k] for k in ("decisions","target_decisions","battles","workers","policy_version","decisions_per_second_ema","battles_per_second_ema","elapsed_wall_time","eta_next_checkpoint_seconds","eta_final_seconds")}),flush=True)
+        profile["metrics_seconds"]=profile.get("metrics_seconds",0)+time.perf_counter()-metrics_start
+        checks_start=time.perf_counter()
         due=[x for x in checkpoints if counters["decisions"]>=x and not (run_dir/"checkpoints"/f"decision_{x}.pt").exists()]
+        trainer.training_state={"sampling_rng":rng.getstate(),"rate_ema":rate_ema,"battle_rate_ema":battle_rate_ema,"empty_battles":empty_battles}
         for threshold in due:
             snapshot=run_dir/"checkpoints"/f"opponent_{threshold}.pt"
             torch.save({"policy":policy.state_dict(),"schema":SCHEMA_VERSION,"metadata":metadata(config,seed)},snapshot); opponent_paths.append(str(snapshot))
@@ -311,10 +372,18 @@ def train_run(config, resume=None):
             with metrics_path.open("a") as f: f.write(json.dumps(eval_row)+"\n")
             collapse=float(safety.get("evaluation_collapse_win_rate",0))
             if collapse and max(result["random"]["win_rate"],result["damage"]["win_rate"])<collapse: raise RuntimeError("early-stop: fixed-baseline collapse")
+        profile["checkpoint_evaluation_checks_seconds"]=profile.get("checkpoint_evaluation_checks_seconds",0)+time.perf_counter()-checks_start
+        counters["elapsed_seconds"]+=time.perf_counter()-metrics_start
     except KeyboardInterrupt:
       interrupted=True
     except BaseException as error:
       interrupted=True; failure=error
+    if rollback is not None:
+        policy.load_state_dict(rollback["policy"]); trainer.value.load_state_dict(rollback["value"])
+        trainer.optimizer.load_state_dict(rollback["optimizer"]); trainer.step=rollback["step"]; counters=rollback["counters"]
+        py,npstate,tr,sampling=rollback["rng"]
+        random.setstate(py); np.random.set_state(npstate); torch.set_rng_state(tr); rng.setstate(sampling)
+    trainer.training_state.update(sampling_rng=rng.getstate())
     final=run_dir/"checkpoints"/("emergency.pt" if interrupted else "final.pt"); trainer.checkpoint(final,config,metadata(config,seed),counters,opponent_paths)
     manifest,_=export_policy(policy,run_dir); params=torch.cat([x.detach().cpu().flatten() for x in policy.parameters()])
     report={**counters,"run_dir":str(run_dir),"checkpoint":str(final),"interrupted":interrupted,"device":device,"workers":workers,

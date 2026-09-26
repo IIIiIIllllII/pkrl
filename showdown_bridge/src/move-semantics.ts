@@ -2,9 +2,10 @@ export type MoveClass = 'normal-damage' | 'fixed-damage' | 'status'
 
 const FIXED_DAMAGE = new Set([
   'counter', 'dragonrage', 'endeavor', 'mirrorcoat', 'nightshade',
-  'psywave', 'seismictoss', 'sonicboom', 'superfang',
+  'psywave', 'seismictoss', 'sonicboom', 'superfang', 'bide',
+  'fissure', 'guillotine', 'horndrill', 'sheercold', 'futuresight', 'doomdesire',
 ])
-const VARIABLE_DAMAGE = new Set(['flail', 'frustration', 'hiddenpower', 'lowkick', 'return', 'reversal'])
+const VARIABLE_DAMAGE = new Set(['flail', 'frustration', 'hiddenpower', 'lowkick', 'return', 'reversal', 'magnitude', 'present', 'spitup'])
 
 export function classifyMove(data: any, basePower: number): MoveClass {
   if (FIXED_DAMAGE.has(data.id) || data.damage != null || data.damageCallback) return 'fixed-damage'
@@ -20,6 +21,7 @@ function chartBucket(Dex: any, moveType: string, targetTypes: string[]): number 
 }
 
 export function statusApplicable(Dex: any, data: any, moveType: string, targetTypes: string[], targetStatus = ''): boolean {
+  if (['self', 'allySide', 'allyTeam', 'all'].includes(data.target)) return true
   const types = new Set(targetTypes.map(value => value.toLowerCase()))
   if (['thunderwave', 'glare'].includes(data.id) && chartBucket(Dex, moveType, targetTypes) === 0) return false
   if (['psn', 'tox'].includes(data.status) && (types.has('poison') || types.has('steel'))) return false
@@ -32,7 +34,7 @@ export function statusApplicable(Dex: any, data: any, moveType: string, targetTy
 
 export function resolveMoveSemantics(Dex: any, data: any, moveType: string, basePower: number, targetTypes: string[], targetStatus = '') {
   const moveClass = classifyMove(data, basePower)
-  const chart = chartBucket(Dex, moveType, targetTypes)
+  const chart = ['struggle', 'futuresight', 'doomdesire'].includes(data.id) ? 3 : data.id === 'dreameater' && targetStatus !== 'slp' ? 0 : chartBucket(Dex, moveType, targetTypes)
   const applicable = moveClass === 'status' ? statusApplicable(Dex, data, moveType, targetTypes, targetStatus) : chart !== 0
   const effectivenessBucket = moveClass === 'normal-damage' ? chart : applicable ? 3 : 0
   return {moveClass, applicable, effectivenessBucket}

@@ -19,13 +19,14 @@ class MoveClass(IntEnum):
 
 FIXED_DAMAGE_MOVES = frozenset({
     "counter", "dragonrage", "endeavor", "mirrorcoat", "nightshade",
-    "psywave", "seismictoss", "sonicboom", "superfang",
+    "psywave", "seismictoss", "sonicboom", "superfang", "bide",
+    "fissure", "guillotine", "horndrill", "sheercold", "futuresight", "doomdesire",
 })
 
 # Gen 3 variable-power attacks whose resolved request metadata can have zero
 # base power.  They still use the ordinary type chart.
 VARIABLE_DAMAGE_MOVES = frozenset({
-    "flail", "frustration", "hiddenpower", "lowkick", "return", "reversal",
+    "flail", "frustration", "hiddenpower", "lowkick", "return", "reversal", "magnitude", "present", "spitup",
 })
 
 # Non-neutral Gen 3 type-chart exponents. -1 means 1/2, +1 means 2x; None is
@@ -84,6 +85,8 @@ def status_applicable(move: dict, defender_types: list[str] | tuple[str, ...], t
     mid = move_id(move)
     types = {str(value).lower() for value in defender_types}
     status = str(move.get("status") or "").lower()
+    if move.get("target") in {"self", "allySide", "allyTeam", "all"}:
+        return True
     if mid in {"thunderwave", "glare"}:
         # These two status moves explicitly do not ignore type immunity in the
         # pinned Gen 3 Showdown data.
@@ -110,6 +113,10 @@ def effectiveness_feature(move: dict, defender_types: list[str] | tuple[str, ...
     applicability (neutral), never resistance or weakness.
     """
     move_class = classify_move(move)
+    if move_id(move) in {"struggle", "futuresight", "doomdesire"}:
+        return Effectiveness.NEUTRAL
+    if move_id(move) == "dreameater" and target_status != "slp":
+        return Effectiveness.IMMUNE
     effectiveness = damage_effectiveness(str(move.get("type") or "unknown"), defender_types)
     if move_class == MoveClass.NORMAL_DAMAGE:
         return effectiveness

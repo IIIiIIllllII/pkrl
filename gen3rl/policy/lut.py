@@ -3,13 +3,15 @@ import torch
 from torch import nn
 from gen3rl.features.schema import FEATURE_SPECS, FEATURE_INDEX, PAIR_SPECS, MOVE_ACTIONS, parameter_count
 import numpy as np
-from gen3rl.features.schema import SCHEMA_VERSION
+from gen3rl.features.schema import SCHEMA_VERSION, SEMANTICS_REVISION
 
 def validate_checkpoint_schema(state, source="checkpoint"):
     actual=state.get("metadata",{}).get("feature_schema_version")
     if actual != SCHEMA_VERSION:
         raise ValueError(f"{source} uses feature schema {actual!r}; expected {SCHEMA_VERSION}. "
                          "v1 weights are not compatible with v1.1 semantics")
+    if state.get("metadata",{}).get("semantics_revision") != SEMANTICS_REVISION:
+        raise ValueError(f"{source} predates the audited v1.1 semantics; initialize a clean policy")
 
 class AdditiveLUTPolicy(nn.Module):
     """No hidden layers: every move logit is exactly a sum of table entries."""
@@ -51,10 +53,13 @@ class NumpyLUTActor:
         self.tables=[p.detach().cpu().numpy().copy() for p in policy.tables]
         self.pairs=[p.detach().cpu().numpy().copy() for p in policy.pairs]
     def logits(self, features, mask):
+        if not np.any(mask): raise ValueError("state has no legal action")
         scores=np.zeros(len(mask),dtype=np.float32); move=self.bias.copy()
         for i,table in enumerate(self.tables): move += table[features[:MOVE_ACTIONS,i]]
         for table,(a,b) in zip(self.pairs,PAIR_SPECS): move += table[features[:MOVE_ACTIONS,FEATURE_INDEX[a]],features[:MOVE_ACTIONS,FEATURE_INDEX[b]]]
-        scores[:MOVE_ACTIONS]=move; scores[~mask]=-np.inf; return scores
+        scores[:MOVE_ACTIONS]=move; scores[~mask]=-np.inf
+        if not np.isfinite(scores[mask]).all(): raise FloatingPointError("non-finite legal policy scores")
+        return scores
     def act(self, features, mask, deterministic=False):
         scores=self.logits(features,mask)
         if deterministic: action=int(np.argmax(scores))

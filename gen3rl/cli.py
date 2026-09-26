@@ -19,13 +19,34 @@ def install_pokeemerald_integration(checkout: Path):
     patch=ROOT/"integration/pokeemerald/gen3rl.patch"
     reverse=run(["git","apply","--reverse","--check",str(patch)],checkout,check=False)
     if reverse.returncode==0:
+        install_reference_encoder(checkout)
         return "already applied"
     applicable=run(["git","apply","--check",str(patch)],checkout,check=False)
     if applicable.returncode:
+        # Migrate only the exact previously committed patch, never arbitrary
+        # local ROM edits. Both reverse and new apply remain checked by git.
+        old=run(["git","show","1a86b48:integration/pokeemerald/gen3rl.patch"]).stdout
+        with tempfile.NamedTemporaryFile(mode="w",suffix=".patch") as f:
+            f.write(old); f.flush()
+            check=run(["git","apply","--reverse","--check",f.name],checkout,check=False)
+            if check.returncode==0:
+                run(["git","apply","--reverse",f.name],checkout)
+                run(["git","apply",str(patch)],checkout)
+                install_reference_encoder(checkout)
+                return "upgraded exact historical integration"
         detail=(applicable.stderr or applicable.stdout).strip()
         raise RuntimeError(f"pokeemerald integration patch does not apply: {detail}")
     run(["git","apply",str(patch)],checkout)
+    install_reference_encoder(checkout)
     return "applied"
+
+def install_reference_encoder(checkout):
+    target=checkout/"src/data/gen3rl"; target.mkdir(parents=True,exist_ok=True)
+    for name in ("encoder.h","encoder.c","semantics.generated.h"):
+        shutil.copyfile(ROOT/"integration/reference"/name,target/name)
+    # The pokeemerald makefile compiles top-level src C files.
+    (checkout/"src/gen3rl_encoder.c").write_text('#include "data/gen3rl/encoder.c"\n')
+    (checkout/"src/gen3rl_lut.c").write_text('#include "data/battle_ai_rl_lut.c"\n')
 
 def bootstrap(_):
     for p in ("artifacts/checkpoints","artifacts/generated","artifacts/teams","artifacts/coverage","docs","integration/pokeemerald"):
@@ -45,7 +66,9 @@ def bootstrap(_):
         revisions[name]=revision
     patch_status=install_pokeemerald_integration(third/"pokeemerald")
     npm=shutil.which("npm")
+    if npm and run([npm,"--version"]).stdout.strip()!="11.6.0": npm=None
     local_npm=third/"npm/bin/npm-cli.js"
+    if not local_npm.exists(): local_npm=third/"npm/package/bin/npm-cli.js"
     if not npm and not local_npm.exists():
         with tempfile.TemporaryDirectory(prefix="gen3rl-npm-") as td:
             archive=Path(td)/"npm.tgz"; urllib.request.urlretrieve("https://registry.npmjs.org/npm/-/npm-11.6.0.tgz",archive)
@@ -56,7 +79,7 @@ def bootstrap(_):
     if not (third/"pokemon-showdown/dist/sim/battle-stream.js").exists():
         run(npm_cmd+["ci","--omit=optional"],third/"pokemon-showdown"); run(["node","build"],third/"pokemon-showdown")
     tsc=third/"pokemon-showdown/node_modules/typescript/bin/tsc"
-    if not (ROOT/"showdown_bridge/dist/worker.js").exists(): run(["node",str(tsc),"-p","showdown_bridge/tsconfig.json"])
+    run(["node",str(tsc),"-p","showdown_bridge/tsconfig.json"])
     status={"showdown":revisions["pokemon-showdown"],
             "pokeemerald":revisions["pokeemerald"],"pokeemerald_integration":patch_status,
             "bridge_built":(ROOT/"showdown_bridge/dist/worker.js").exists()}
@@ -131,50 +154,13 @@ def real_states_cmd(args):
     coverage=coverage_report(states,masks,report_root/"feature_coverage.json"); fixed_eval_manifest(schema_artifacts()/"eval/fixed_suites.json"); print(json.dumps({"quantization":q,"coverage":{k:coverage[k] for k in ("visited_entries","rare_entries","unvisited_entries","warnings")}},indent=2))
 
 def preflight(args):
-    reasons=[]; warnings=[]; config=load_config(args.config); workers=int(config.get("workers",1))
-    if os.cpu_count() and workers>os.cpu_count(): warnings.append(f"configured {workers} workers but only {os.cpu_count()} logical CPUs are visible")
+    # One authoritative gate; the earlier rollout-only preflight is retired.
+    from gen3rl.preflight import main as gate
+    previous=sys.argv
     try:
-        meminfo={line.split(":",1)[0]:int(line.split(":",1)[1].strip().split()[0]) for line in Path("/proc/meminfo").read_text().splitlines()}
-        available_gib=meminfo["MemAvailable"]/(1024**2)
-        minimum_gib=float(config.get("minimum_available_ram_gib",2))
-        if available_gib<minimum_gib: reasons.append(f"only {available_gib:.1f} GiB RAM available; config requires {minimum_gib:.1f} GiB")
-    except (ValueError,OSError): warnings.append("could not determine available RAM")
-    if str(config.get("device","cpu"))=="cuda":
-        try:
-            import torch
-            if not torch.cuda.is_available(): reasons.append("config requests CUDA but CUDA is unavailable")
-        except ImportError: reasons.append("config requests CUDA but PyTorch is unavailable")
-    doctor_result=run([str(ROOT/".venv/bin/python"),"-m","gen3rl.cli","doctor"],check=False)
-    if doctor_result.returncode: reasons.append("doctor failed")
-    test=run([str(ROOT/".venv/bin/python"),"-m","pytest","-q"],check=False)
-    if test.returncode: reasons.append("test suite failed")
-    try:
-        from gen3rl.runner import smoke,evaluate_suites
-        from gen3rl.env.bridge import ShowdownBridge
-        from gen3rl.benchmark import benchmark
-        from gen3rl.eval.reports import collect_states,quantization_report,coverage_report,fixed_eval_manifest
-        from gen3rl.policy.lut import AdditiveLUTPolicy
-        from gen3rl.parallel import initial_seed_schedule
-        schedule=initial_seed_schedule(int(config.get("seed",1)),workers)
-        if len({row["worker_seed"] for row in schedule})!=workers or len({row["battle_seed"] for row in schedule})!=workers:
-            reasons.append("parallel seed collision")
-        summary=smoke(config); policy=AdditiveLUTPolicy(); policy.load_state_dict(__import__("torch").load(summary["checkpoint"],map_location="cpu",weights_only=False)["policy"])
-        states,masks,domains,_=collect_states(policy,int(config.get("preflight_states",500)),seed=int(config.get("seed",1))+500)
-        report_root=schema_artifacts()/"reports"; report_root.mkdir(parents=True,exist_ok=True)
-        q=quantization_report(policy,states,masks,domains,report_root/"preflight_quantization.json")
-        cov=coverage_report(states,masks,report_root/"preflight_coverage.json"); fixed_eval_manifest(schema_artifacts()/"eval/fixed_suites.json")
-        bench=benchmark(float(config.get("preflight_minutes",.05)),max_battles=max(100,workers),workers=workers)
-        with ShowdownBridge() as bridge: evaluation=evaluate_suites(policy,bridge,games=4,seed=99000)
-        if not q["top1_agreement"]>=.99: reasons.append("real-state quantization agreement below 99%")
-        if bench["battles"]<1: reasons.append("benchmark completed no battles")
-        if bench["illegal_actions"]: reasons.append("parallel benchmark selected illegal actions")
-        if bench["worker_crash_restart_count"]: reasons.append("parallel rollout worker crashed")
-        if len(bench["per_worker_throughput"])!=workers: reasons.append("not every configured worker completed a battle")
-        if summary.get("checkpoint_roundtrip") is not True: reasons.append("checkpoint round-trip failed")
-    except Exception as e: reasons.append(f"preflight exception: {type(e).__name__}: {e}")
-    verdict="READY FOR LONG RUN" if not reasons else "NOT READY"
-    print(json.dumps({"verdict":verdict,"reasons":reasons,"warnings":warnings,"workers":workers,"available_ram_gib":locals().get("available_gib"),
-        "tests":test.stdout.strip().splitlines()[-1:],"doctor":doctor_result.returncode==0},indent=2)); return 0 if not reasons else 1
+        sys.argv=[previous[0],"--config",args.config]
+        return gate()
+    finally: sys.argv=previous
 
 def main(argv=None):
     p=argparse.ArgumentParser(prog="python -m gen3rl.cli"); sub=p.add_subparsers(dest="command",required=True)

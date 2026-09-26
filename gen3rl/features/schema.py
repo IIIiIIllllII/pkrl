@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 
 SCHEMA_VERSION = "gen3-lut-v1.1"
+SEMANTICS_REVISION = "2026-09-27-reboot"
 MAX_ACTIONS = 9
 MOVE_ACTIONS = 4
 

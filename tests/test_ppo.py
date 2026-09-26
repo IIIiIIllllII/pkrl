@@ -24,3 +24,9 @@ def test_v1_checkpoint_is_rejected_by_v1_1_loader(tmp_path):
     trainer.checkpoint(path,{}, {"feature_schema_version":"gen3-lut-v1"})
     with pytest.raises(ValueError,match="not compatible with v1.1"):
         PPOTrainer(AdditiveLUTPolicy(),len(FEATURE_SPECS)).load(path)
+
+def test_provisional_v1_1_checkpoint_is_not_silently_reinterpreted(tmp_path):
+    path=tmp_path/'provisional.pt'
+    torch.save({"metadata":{"feature_schema_version":SCHEMA_VERSION}},path)
+    with pytest.raises(ValueError,match="predates the audited"):
+        PPOTrainer(AdditiveLUTPolicy(),len(FEATURE_SPECS)).load(path)

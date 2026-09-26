@@ -156,20 +156,26 @@ class RolloutPool:
         if target_decisions is None and max_battles is None and deadline_seconds is None: raise ValueError("collection needs a stopping condition")
         sync_seconds=self.sync(policy,policy_version) if self.synced_version!=int(policy_version) else 0.0
         start=time.perf_counter(); next_index=int(start_battle_index)
-        inflight={}; results=[]; decisions=0; queue_wait=0.0
+        inflight={}; results=[]; decisions=0; queue_wait=0.0; dispatch_seconds=0.0
         def can_submit():
             if max_battles is not None and next_index-start_battle_index>=max_battles: return False
             if target_decisions is not None and decisions>=target_decisions: return False
             if deadline_seconds is not None and time.perf_counter()-start>=deadline_seconds: return False
             return True
         def submit(worker_id):
-            nonlocal next_index
+            nonlocal next_index, dispatch_seconds
+            tick=time.perf_counter()
             job=self._job(worker_id,next_index,policy_version,domain_weights,opponent_weights,opponent_paths)
             self.connections[worker_id].send(job); inflight[self.connections[worker_id]]=worker_id; next_index+=1
+            dispatch_seconds+=time.perf_counter()-tick
         for worker_id in range(self.workers):
             if can_submit(): submit(worker_id)
         while inflight:
-            tick=time.perf_counter(); ready=wait(list(inflight),timeout=self.timeout); queue_wait+=time.perf_counter()-tick
+            # Consume in submission order. OS completion timing must not change
+            # the battles in a generation or the next checkpoint's seed index.
+            tick=time.perf_counter(); connection=next(iter(inflight))
+            ready=[connection] if connection.poll(self.timeout) else []
+            queue_wait+=time.perf_counter()-tick
             if not ready: self._check_processes(); raise TimeoutError("rollout generation timed out")
             for connection in ready:
                 worker_id=inflight.pop(connection); result=self._receive(connection,"trajectory")
@@ -187,7 +193,7 @@ class RolloutPool:
             row["battles_per_second"]=row["battles"]/max(row["worker_wall_seconds"],1e-9)
             row["decisions_per_second"]=row["decisions"]/max(row["worker_wall_seconds"],1e-9)
         return results,{"policy_version":int(policy_version),"policy_sync_seconds":sync_seconds,"rollout_wall_seconds":wall,
-            "queue_wait_seconds":queue_wait,"battles":len(results),"decisions":decisions,"per_worker":by_worker,
+            "queue_wait_seconds":queue_wait,"dispatch_seconds":dispatch_seconds,"battles":len(results),"decisions":decisions,"per_worker":by_worker,
             "worker_restarts":self.restart_count,"worker_startup_seconds":self.startup_seconds}
 
     def close(self):

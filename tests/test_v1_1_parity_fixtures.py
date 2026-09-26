@@ -11,9 +11,13 @@ ROOT=Path(__file__).resolve().parents[1]
 def test_committed_typescript_parity_fixtures_match_python_reference():
     payload=json.loads((ROOT/"web-playtest/public/v1-1-parity-fixtures.json").read_text())
     assert payload["schema_version"] == SCHEMA_VERSION
+    tables={k:np.asarray(v,dtype=np.float32) for k,v in payload["policy"]["tables"].items()}
+    flat=np.concatenate([x.flatten() for x in tables.values()])
     for fixture in payload["fixtures"]:
         features,mask=encode_request(fixture["request"])
         assert features.tolist() == fixture["features"]
         assert mask.tolist() == fixture["legal_mask"]
         assert fixture["request"]["public"]["target"]["types"] == fixture["resolved_defender_types"]
         assert np.isfinite(features).all()
+        for slot,ids in enumerate(fixture["activated_feature_ids"]):
+            if mask[slot]: assert abs(float(sum(flat[i] for i in ids))-fixture["scores"][slot])<1e-6

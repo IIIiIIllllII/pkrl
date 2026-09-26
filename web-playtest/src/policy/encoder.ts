@@ -26,7 +26,7 @@ export function classifyRole(move: MoveRequest): number {
   if (['roar', 'whirlwind'].includes(id)) return ROLE_IDS.phaze
   if (id === 'batonpass') return ROLE_IDS.pivot
   if (['explosion', 'selfdestruct', 'memento'].includes(id)) return ROLE_IDS.self_ko
-  if (['seismictoss', 'nightshade', 'dragonrage', 'sonicboom', 'psywave', 'superfang'].includes(id)) return ROLE_IDS.fixed
+  if (classifyMove(move) === 'fixed-damage') return ROLE_IDS.fixed
   if (classifyMove(move) === 'normal-damage') return ROLE_IDS.damage
   if (move.boosts && Object.values(move.boosts).some(value => value < 0)) return ROLE_IDS.debuff
   if (move.boosts || move.self?.boosts) return ROLE_IDS.setup
@@ -68,8 +68,9 @@ export function encodeRequest(request: BattleRequest): {features: number[][]; ma
     row[18] = weather; row[19] = 2
   }
   const switches = mons.filter(mon => !mon.active && !mon.condition.includes('fnt'))
-  const trapped = Boolean(request.active?.[0]?.trapped)
+  const trapped = Boolean(request.active?.[0]?.trapped || request.active?.[0]?.maybeTrapped)
   if (forced || !trapped) switches.slice(0, 5).forEach((_, index) => { mask[4 + index] = true })
+  if (request.wait || request.teamPreview) mask.fill(false)
   return {features, mask}
 }
 

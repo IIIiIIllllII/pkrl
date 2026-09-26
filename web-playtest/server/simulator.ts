@@ -76,7 +76,7 @@ function updatePublic(player: Player, state: PublicState, line: string): void {
   if (['switch', 'drag', 'replace'].includes(command) && fields[2]?.startsWith(opponent)) {
     const species = (fields[3] || '').split(',')[0]; const data = Gen3Dex.species.get(species)
     const level = Number((fields[3] || '').match(/L(\d+)/)?.[1] || 100)
-    state.target = {species, hpBucket: hpBucket(fields[4] || '100/100'), status: '', types: data.types || [], estimatedSpeed: Math.floor((2 * data.baseStats.spe + 31) * level / 100) + 5}
+    state.target = {species, hpBucket: hpBucket(fields[4] || '100/100'), status: (fields[4] || '').split(' ')[1] || '', types: data.types || [], estimatedSpeed: Math.floor((2 * data.baseStats.spe + 31) * level / 100) + 5}
   } else if (['-damage', '-heal'].includes(command) && fields[2]?.startsWith(opponent) && state.target) {
     state.target.hpBucket = hpBucket(fields[3] || '')
     const status = (fields[3] || '').split(' ')[1]; if (status) state.target.status = status
@@ -98,7 +98,7 @@ function safeRequest(raw: BattleRequest, visible: PublicState): BattleRequest {
       const moveType = hiddenPower?.[1] || data.type
       const basePower = hiddenPower?.[2] ? Number(hiddenPower[2]) : data.basePower
       const enriched = {...move, id: data.id, type: moveType, basePower, accuracy: data.accuracy,
-        priority: data.priority, status: data.status, boosts: data.boosts, self: data.self,
+        priority: data.priority, status: data.status, target: data.target, boosts: data.boosts, self: data.self,
         fixedDamage: data.damage ?? (data.damageCallback ? 'callback' : undefined),
         isDamageMove: data.category !== 'Status'}
       let legacyEffectivenessBucket = 3

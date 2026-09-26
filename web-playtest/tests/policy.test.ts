@@ -18,10 +18,16 @@ describe('frozen LUT parity', () => {
       const encoded = encodeRequest(fixture.request)
       expect(fixture.request.public.target.types).toEqual(fixture.resolved_defender_types)
       expect(encoded.features).toEqual(fixture.features); expect(encoded.mask).toEqual(fixture.legal_mask)
+      fixture.request.active[0].moves.forEach((move: any, i: number) => {
+        const actual = resolveMoveSemantics(move, fixture.resolved_defender_types, fixture.request.public.target.status)
+        expect(actual).toEqual({moveClass: fixture.move_semantics[i].move_class,
+          applicable: fixture.move_semantics[i].applicable, effectivenessBucket: fixture.move_semantics[i].effectiveness_bucket})
+      })
       const scores = policyScores(policy, encoded.features, encoded.mask)
       fixture.scores.forEach((expected: number | null, index: number) => expected == null
         ? expect(scores[index]).toBeNull() : expect(scores[index]).toBeCloseTo(expected, 5))
-      expect(selectTop1(scores)).toBe(fixture.selected_action)
+      if (fixture.selected_action == null) expect(() => selectTop1(scores)).toThrow()
+      else expect(selectTop1(scores)).toBe(fixture.selected_action)
     }
   })
   it('loads all compact policy assets with compatible metadata', () => {

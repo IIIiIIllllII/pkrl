@@ -3,6 +3,7 @@ export type Player = 'p1' | 'p2'
 export interface BattleRequest {
   rqid?: number
   wait?: boolean
+  teamPreview?: boolean
   forceSwitch?: boolean[] | null
   active?: Array<{trapped?: boolean; maybeTrapped?: boolean; moves: MoveRequest[]}> | null
   side?: {id?: string; name?: string; pokemon: PokemonRequest[]}
@@ -19,6 +20,7 @@ export interface MoveRequest {
   accuracy?: number | boolean | null
   priority?: number
   status?: string
+  target?: string
   boosts?: Record<string, number>
   self?: {boosts?: Record<string, number>}
   effectivenessBucket?: number

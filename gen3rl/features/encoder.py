@@ -21,8 +21,8 @@ def classify_role(move: dict) -> int:
     if mid in {"roar", "whirlwind"}: return MoveRole.PHAZE
     if mid in {"batonpass"}: return MoveRole.PIVOT
     if mid in {"explosion", "selfdestruct", "memento"}: return MoveRole.SELF_KO
-    if mid in {"seismictoss", "nightshade", "dragonrage", "sonicboom", "psywave", "superfang"}: return MoveRole.FIXED
-    if (move.get("basePower") or 0) > 0 or move.get("isDamageMove") is True or mid in VARIABLE_DAMAGE_MOVES: return MoveRole.DAMAGE
+    if classify_move(move) == MoveClass.FIXED_DAMAGE: return MoveRole.FIXED
+    if classify_move(move) == MoveClass.NORMAL_DAMAGE: return MoveRole.DAMAGE
     boosts=move.get("boosts") or {}
     if boosts and any(int(v)<0 for v in boosts.values()): return MoveRole.DEBUFF
     if boosts or move.get("self", {}).get("boosts"): return MoveRole.SETUP
@@ -67,7 +67,9 @@ def encode_request(request: dict) -> tuple[np.ndarray, np.ndarray]:
         row[17] = int(int(public.get("turn", 0)) <= 1); row[18] = weather; row[19] = 2
     # Switch action indices are universal and stay logically separate from the ROM move policy.
     switches = [p for p in mons if not p.get("active") and "fnt" not in p.get("condition", "")]
-    trapped = bool(((request.get("active") or [{}])[0] or {}).get("trapped"))
+    active = (request.get("active") or [{}])[0] or {}
+    trapped = bool(active.get("trapped") or active.get("maybeTrapped"))
     if forced_switch or not trapped:
         mask[4:4 + min(5, len(switches))] = True
+    if request.get("wait") or request.get("teamPreview"): mask[:] = False
     return out, mask

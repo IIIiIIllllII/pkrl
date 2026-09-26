@@ -2,8 +2,8 @@ import type {MoveRequest} from '../types'
 
 export type MoveClass = 'normal-damage' | 'fixed-damage' | 'status'
 
-const FIXED_DAMAGE = new Set(['counter', 'dragonrage', 'endeavor', 'mirrorcoat', 'nightshade', 'psywave', 'seismictoss', 'sonicboom', 'superfang'])
-const VARIABLE_DAMAGE = new Set(['flail', 'frustration', 'hiddenpower', 'lowkick', 'return', 'reversal'])
+const FIXED_DAMAGE = new Set(['counter', 'dragonrage', 'endeavor', 'mirrorcoat', 'nightshade', 'psywave', 'seismictoss', 'sonicboom', 'superfang', 'bide', 'fissure', 'guillotine', 'horndrill', 'sheercold', 'futuresight', 'doomdesire'])
+const VARIABLE_DAMAGE = new Set(['flail', 'frustration', 'hiddenpower', 'lowkick', 'return', 'reversal', 'magnitude', 'present', 'spitup'])
 const CHART: Record<string, Record<string, number | null>> = {
   normal: {rock: -1, ghost: null, steel: -1},
   fire: {fire: -1, water: -1, grass: 1, ice: 1, bug: 1, rock: -1, dragon: -1, steel: 1},
@@ -44,6 +44,7 @@ export function damageEffectiveness(moveType: string, targetTypes: string[]): nu
 }
 
 export function statusApplicable(move: MoveRequest, targetTypes: string[], targetStatus = ''): boolean {
+  if (['self', 'allySide', 'allyTeam', 'all'].includes(move.target || '')) return true
   const id = idOf(move); const types = new Set(targetTypes.map(value => value.toLowerCase())); const status = (move.status || '').toLowerCase()
   if (['thunderwave', 'glare'].includes(id) && damageEffectiveness(move.type || 'unknown', targetTypes) === 0) return false
   if (['psn', 'tox'].includes(status) && (types.has('poison') || types.has('steel'))) return false
@@ -55,7 +56,8 @@ export function statusApplicable(move: MoveRequest, targetTypes: string[], targe
 }
 
 export function resolveMoveSemantics(move: MoveRequest, targetTypes: string[], targetStatus = '') {
-  const moveClass = classifyMove(move); const chart = damageEffectiveness(move.type || 'unknown', targetTypes)
+  const moveClass = classifyMove(move); const id = idOf(move)
+  const chart = ['struggle', 'futuresight', 'doomdesire'].includes(id) ? 3 : id === 'dreameater' && targetStatus !== 'slp' ? 0 : damageEffectiveness(move.type || 'unknown', targetTypes)
   const applicable = moveClass === 'status' ? statusApplicable(move, targetTypes, targetStatus) : chart !== 0
   const effectivenessBucket = moveClass === 'normal-damage' ? chart : applicable ? 3 : 0
   return {moveClass, applicable, effectivenessBucket}

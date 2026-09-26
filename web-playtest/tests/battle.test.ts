@@ -6,6 +6,23 @@ import type {BattleApiInput} from '../src/types'
 const base: BattleApiInput = {battle_id: 'test-battle', seed: [44, 45, 46, 47], policy_id: 'v1-100m', human_team_id: 'rom-npc', ai_team_id: 'rom-npc', human_choices: []}
 
 describe('stateless pinned simulator', () => {
+  it('v1.1 cannot condition its first decision on the future human choice or hidden team', async () => {
+    const ai = [{species: 'Swampert', level: 50, moves: ['Surf', 'Earthquake', 'Protect']}]
+    const input = {...base, battle_id: 'counterfactual', policy_id: 'v1.1-parity-synthetic'}
+    const results = []
+    for (const [choice, item, ability, bench] of [
+      ['move 1', 'Leftovers', 'Run Away', 'Mewtwo'],
+      ['move 2', 'Choice Band', 'Guts', 'Mew'],
+    ]) {
+      const human = [{species: 'Rattata', level: 50, moves: ['Protect', 'Tackle'], item, ability},
+        {species: bench, level: 50, moves: ['Psychic']}]
+      const result = await replayBattle({...input, human_choices: [choice]}, {human, ai})
+      const decision = result.ai_decisions[0]
+      expect(decision).toBeDefined()
+      results.push({observation: decision.observation, candidates: decision.candidates, chosen: decision.chosen_action})
+    }
+    expect(results[0]).toEqual(results[1])
+  })
   it('serves JSON through the Vercel Web handler', async () => {
     const request = new Request('https://playtest.example/api/battle', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(base)})
     const response = await battleHandler.fetch(request); const body = await response.json()

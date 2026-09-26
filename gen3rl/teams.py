@@ -1,6 +1,8 @@
 """Deterministic cartridge splits and coverage-oriented legal Gen 3 teams."""
 from __future__ import annotations
 import hashlib, json, random
+import copy
+from functools import lru_cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,10 +46,20 @@ def stable_cartridge_splits(records=None, seed=20260919, output=ROOT/"artifacts/
     (output/"cartridge_splits.json").write_text(json.dumps(manifest,indent=2)+"\n")
     return manifest
 
+@lru_cache(maxsize=3)
+def _cartridge_choices(split, path, mtime_ns):
+    records=load_cartridge_records(path)
+    choices=[]
+    for record in records:
+        digest=hashlib.sha256(f"20260919:{record['trainer_id']}".encode()).digest()[0]
+        domain="train" if digest<179 else "validation" if digest<218 else "held_out"
+        if domain==split and record["showdown_team"] and record["battle_type"]=="FALSE": choices.append(record)
+    return choices
+
 def cartridge_match(seed: int, split="train"):
-    records=load_cartridge_records(); manifest=stable_cartridge_splits(records)
-    wanted=set(manifest["splits"][split]); choices=[r for r in records if r["trainer_id"] in wanted and r["showdown_team"] and r["battle_type"]=="FALSE"]
+    path=ROOT/"artifacts/teams/pokeemerald_trainers.jsonl"
+    if not path.exists(): raise FileNotFoundError(f"extract cartridge trainers before training: {path}")
+    choices=_cartridge_choices(split,path,path.stat().st_mtime_ns)
     if len(choices)<2: return synthetic_match(seed)
     rng=random.Random(seed); a,b=rng.sample(choices,2)
-    return a["showdown_team"],b["showdown_team"]
-
+    return copy.deepcopy(a["showdown_team"]),copy.deepcopy(b["showdown_team"])

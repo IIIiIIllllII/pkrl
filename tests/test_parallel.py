@@ -8,6 +8,20 @@ from gen3rl.policy.lut import AdditiveLUTPolicy
 from gen3rl.rl.ppo import PPOTrainer
 from gen3rl.runner import _batch_episode
 
+def test_generation_and_frozen_policy_are_reproducible():
+    torch.manual_seed(501); policy=AdditiveLUTPolicy(); snapshots=[]
+    for _ in range(2):
+        with RolloutPool(2,411) as pool:
+            results,_=pool.collect(policy,9,0,{"synthetic":1.0},{"random":1.0},target_decisions=128)
+        snapshot=[]
+        for result in results:
+            snapshot.append((result["battle_index"],result["reward"],[t[2] for t in result["traces"]]))
+            for features,mask,action,logp,_ in result["traces"]:
+                with torch.no_grad(): expected=policy.distribution(torch.as_tensor(features)[None],torch.as_tensor(mask)[None]).log_prob(torch.tensor([action])).item()
+                assert abs(logp-expected)<1e-5
+        snapshots.append(snapshot)
+    assert snapshots[0]==snapshots[1]
+
 
 def test_worker_seed_schedule_is_reproducible_and_disjoint():
     first=initial_seed_schedule(9917,4)
