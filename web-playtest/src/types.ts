@@ -43,6 +43,62 @@ export interface PokemonRequest {
 
 export interface PublicTarget {species: string; hpBucket: number; status: string; types?: string[]; estimatedSpeed: number}
 export interface PublicState {target: PublicTarget | null; weather: string; turn: number}
+export type BoostStat = 'atk' | 'def' | 'spa' | 'spd' | 'spe' | 'accuracy' | 'evasion'
+
+/** Active Pokémon as a Showdown client would show it to the viewing player. */
+export interface PublicPokemonState {
+  species: string
+  hp_percent: number
+  /** Exact [current, max] HP; present only for the viewer's own side. */
+  hp?: [number, number]
+  status: string
+  fainted: boolean
+  /** Non-zero stat stages only, each in [-6, 6]. */
+  boosts: Partial<Record<BoostStat, number>>
+  /** Publicly announced volatiles (Substitute, confusion, Leech Seed, …). */
+  volatiles: string[]
+}
+
+export interface PublicRevealedPokemon {species: string; hp_percent: number; status: string; fainted: boolean}
+
+export interface PublicSideCondition {
+  name: string
+  /** Spikes layers; null for non-layered conditions. */
+  layers: number | null
+  started_turn: number
+  /** End-of-turn upkeeps left, counting the current turn's; null when not timed. */
+  turns_remaining: number | null
+}
+
+export interface PublicSideState {
+  player: Player
+  name: string
+  active: PublicPokemonState | null
+  conditions: PublicSideCondition[]
+  /** Only Pokémon that have appeared in battle. */
+  revealed: PublicRevealedPokemon[]
+}
+
+export interface PublicWeatherState {
+  name: string
+  source: 'move' | 'ability'
+  started_turn: number
+  /** End-of-turn upkeeps left, counting the current turn's; null for permanent (ability) weather. */
+  turns_remaining: number | null
+}
+
+/**
+ * Display/research-only public battle state from one player's perspective. It is
+ * rebuilt from that player's protocol stream and never reaches the policy encoder.
+ */
+export interface PublicBattleState {
+  perspective: Player
+  turn: number
+  weather: PublicWeatherState | null
+  self: PublicSideState
+  opponent: PublicSideState
+}
+
 export interface LegalAction {index: number; choice: string; label: string; kind: 'move' | 'switch'}
 
 export interface PolicyCheckpointRef {
@@ -155,6 +211,8 @@ export interface AIDecision {
   policy_id: string
   turn: number
   observation: Record<string, unknown>
+  /** Public battle state from the AI's perspective when it chose; not a policy input. */
+  public_state: PublicBattleState
   legal_actions: LegalAction[]
   legal_action_mask: boolean[]
   candidates: ActionDiagnostic[]
@@ -170,7 +228,7 @@ export interface AIDecision {
   answer_availability?: AnswerAvailability
 }
 
-export interface HumanAction {turn: number; choice: string; label: string; kind: 'move' | 'switch'}
+export interface HumanAction {turn: number; choice: string; label: string; kind: 'move' | 'switch'; public_state: PublicBattleState}
 
 export interface BattleResponse {
   battle_id: string
@@ -182,6 +240,8 @@ export interface BattleResponse {
   request: BattleRequest | null
   legal_actions: LegalAction[]
   public_log: string[]
+  /** Public battle state from the human's perspective. */
+  public_state: PublicBattleState
   turn: number
   ai_decisions: AIDecision[]
   human_actions: HumanAction[]

@@ -90,6 +90,33 @@ events that followed. Human actions and the public battle log are recorded
 alongside. Hidden simulator state is never mixed in
 (`metadata.hidden_debug_state_included` is always `false`).
 
+### Public battle state
+
+The battle screen, the battle log and the research log show the public
+modifiers that change what a good decision is:
+
+- weather, whether it came from a move or an ability, and the end-of-turn
+  upkeeps left (Gen 3 move weather lasts five turns; ability weather is
+  permanent, recorded as `turns_remaining: null`);
+- each active Pokémon's HP, major status, stat stages (−6…+6) and announced
+  volatiles such as Substitute, confusion, Leech Seed and Taunt;
+- Reflect/Light Screen/Safeguard/Mist with turns remaining, and Spikes layers;
+- the opponent Pokémon revealed so far, with HP and status.
+
+`src/research/publicBattleState.ts` rebuilds this from one player's own
+protocol stream only, so it can hold nothing a Showdown client would not show
+that player. Each AI decision records it as `public_state` from the AI's side
+(`perspective: "p2"`), each human action from the human's side, and the response
+carries the human's current view. Exact HP appears only for the viewer's own
+side; the opponent is a percentage. Stat stages survive Baton Pass (with its Gen
+3 passable volatiles) and reset on any other switch, Haze and faint.
+
+`public_state` is display and research data, not a policy input: the encoder
+and the `observation` block are unchanged. This matters for analysis because
+v1.1 encodes `feature_stage_summary` as a constant, so the policy never sees
+stat stages even though the log now does. Research logs with this field are
+`research_log_version: 3`.
+
 To help separate an AI mistake from a team gap, each decision also gets an
 `answer_availability` block once the battle is over, classifying the turn as
 `answer_used`, `active_answer_unused`, `bench_answer_unused` or
@@ -181,3 +208,9 @@ behavioural test pool, not a final benchmark.
   infrastructure and keeps simulator-hidden state off the client.
 - `feature_damage_fraction`, `feature_can_ko` and `feature_stage_summary` are
   encoded as constants in v1.1 (0, 0 and `zero`), exactly as during training.
+- The pinned `gen3customgame` format sets `debug: true`, so Showdown's shared
+  protocol reports exact HP for both sides even though it announces HP
+  Percentage Mod. Everything the UI shows (field state, cards, battle log) and
+  `public_state` report the opponent as a percentage; only the raw `public_log`
+  in the response and exported log keeps the simulator's exact values, which is
+  left unchanged to avoid altering pinned simulator output.

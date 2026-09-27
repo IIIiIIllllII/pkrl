@@ -2,9 +2,10 @@ import {useEffect, useMemo, useState, type CSSProperties} from 'react'
 import {TEAM_FIXTURES} from './data/teams'
 import {POLICY_IDS} from './policy/assets'
 import {randomPolicy, randomSeed} from './policy/selection'
-import {battleName, categoryLabel, conditionLabel, debugLabel, FLAG_LABELS, itemName, label, statusLabel, STRENGTH_LABELS, teamLabel, UI, type Locale} from './i18n'
+import {battleName, boostLabel, categoryLabel, conditionLabel, debugLabel, effectLabel, FLAG_LABELS, itemName, label, statusLabel, STRENGTH_LABELS, teamLabel, UI, weatherLabel, type Locale} from './i18n'
+import {readableLine} from './battleLog'
 import {clearActive, copyJson, createResearchLog, downloadJson, downloadJsonl, finalizeLog, flagTurn, loadActive, loadArchive, saveActive, saveToArchive} from './research/logging'
-import type {BattleApiInput, BattleFeedback, BattleResponse, LutContribution, ResearchLog} from './types'
+import type {BattleApiInput, BattleFeedback, BattleResponse, LutContribution, PublicPokemonState, PublicSideState, ResearchLog} from './types'
 
 const FLAG_CATEGORIES = Object.keys(FLAG_LABELS)
 type Session = {input: BattleApiInput; response: BattleResponse; log: ResearchLog; blind: boolean; debug: boolean}
@@ -30,18 +31,23 @@ async function battleRequest(input: BattleApiInput): Promise<BattleResponse> {
   return value as BattleResponse
 }
 
-function readableLine(line: string, locale: Locale): string {
-  const fields = line.split('|'); const command = fields[1]
-  const subject = battleName((fields[2] || '').replace(/^p\da: /, ''), locale)
-  if (command === 'turn') return locale === 'ko' ? `${fields[2]}턴` : `Turn ${fields[2]}`
-  if (command === 'move') return locale === 'ko' ? `${subject}의 ${battleName(fields[3], locale)}!` : `${subject} used ${fields[3]}.`
-  if (['switch', 'drag'].includes(command)) return locale === 'ko' ? `${subject}이(가) 배틀에 나왔다. (${battleName(fields[3], locale)})` : `${subject} entered the battle (${fields[3]}).`
-  if (command === '-damage') return `${subject}: ${locale === 'ko' ? conditionLabel(fields[3], locale) : fields[3]}`
-  if (command === '-heal') return locale === 'ko' ? `${subject}의 HP가 ${conditionLabel(fields[3], locale)}까지 회복되었다.` : `${subject} healed to ${fields[3]}`
-  if (command === '-status') return locale === 'ko' ? `${subject}은(는) ${statusLabel(fields[3], locale)} 상태가 되었다.` : `${subject} became ${fields[3]}.`
-  if (command === 'faint') return locale === 'ko' ? `${subject}은(는) 쓰러졌다.` : `${subject} fainted.`
-  if (command === 'win') return locale === 'ko' ? `${subject === 'Human' ? '플레이어' : subject}의 승리!` : `${fields[2]} won.`
-  return ''
+function StatChips({mon, locale}: {mon: PublicPokemonState | null | undefined; locale: Locale}) {
+  if (!mon || mon.fainted) return null
+  const t = UI[locale]; const boosts = Object.entries(mon.boosts)
+  return <div className="modifiers" aria-label={t.statStages}>
+    {boosts.length ? boosts.map(([stat, stages]) => <b key={stat} className={`boostTag ${stages! > 0 ? 'up' : 'down'}`}>{boostLabel(stat, stages!, locale)}</b>)
+      : <span className="noModifiers">{t.noStatChanges}</span>}
+    {mon.volatiles.map(name => <b key={name} className="volatileTag">{effectLabel(name, locale)}</b>)}
+  </div>
+}
+
+function SideConditions({side, locale}: {side: PublicSideState; locale: Locale}) {
+  const t = UI[locale]
+  if (!side.conditions.length) return <span className="noModifiers">{t.noSideEffects}</span>
+  return <>{side.conditions.map(condition => <b key={condition.name} className="sideTag">
+    {effectLabel(condition.name, locale)}{condition.layers ? ` ×${condition.layers}` : ''}
+    {condition.turns_remaining != null && <small> · {condition.turns_remaining} {t.turnsLeft}</small>}
+  </b>)}</>
 }
 
 function largestContributions(contributions: LutContribution[] | null, count = 8): LutContribution[] {
@@ -136,7 +142,11 @@ export default function App() {
   const revealPolicy = !session.blind || response.terminal
   const provenance = response.policy_provenance
   const ownName = String(own?.details || own?.ident || t.unknown).split(',')[0].replace(/^p\d: /, '')
-  const ownHp = hpPercent(own?.condition); const targetHp = target ? [0, 25, 50, 75, 100][target.hpBucket] : 0
+  const ownHp = hpPercent(own?.condition)
+  // Sessions saved before public_state existed fall back to the bucketed target view.
+  const battleState = response.public_state; const opponentActive = battleState?.opponent.active; const ownActive = battleState?.self.active
+  const targetHp = opponentActive ? opponentActive.hp_percent : target ? [0, 25, 50, 75, 100][target.hpBucket] : 0
+  const targetStatus = opponentActive ? opponentActive.status : target?.status
   const moves = response.legal_actions.filter(action => action.kind === 'move'); const switches = response.legal_actions.filter(action => action.kind === 'switch')
   const party = response.request?.side?.pokemon || []
   return <main className="shell battle">
@@ -146,11 +156,20 @@ export default function App() {
     <div className="battleGrid">
       <section className="panel field">
         <div className="battleStage">
-          <article className="pokemonSide opponentSide"><div className="pokemonCard"><span className="playerLabel">{t.opponent}</span><h2>{battleName(target?.species || t.unknown, locale)}</h2><div className="hpTrack"><span className="hpFill" style={hpStyle(targetHp)}/></div><p>{t.hpBucket}: {target ? [t.fainted, '≤25%', '≤50%', '≤75%', '>75%'][target.hpBucket] : '—'} {target?.status && <b className={`statusTag ${target.status}`}>{statusLabel(target.status, locale)}</b>}</p></div>{target?.species && <img className="pokemonSprite front" src={spriteUrl(target.species)} alt={battleName(target.species, locale)}/>}</article>
-          <div className="battleCenter"><span>{locale === 'ko' ? `${response.turn}턴` : `Turn ${response.turn}`}</span></div>
-          <article className="pokemonSide ownSide">{ownName !== t.unknown && <img className="pokemonSprite back" src={spriteUrl(ownName, true)} alt={battleName(ownName, locale)}/>}<div className="pokemonCard"><span className="playerLabel">{t.you}</span><h2>{battleName(ownName, locale)}</h2><div className="hpTrack"><span className="hpFill" style={hpStyle(ownHp)}/></div><p>{t.hp}: {conditionLabel(own?.condition || '', locale)}</p></div></article>
+          <article className="pokemonSide opponentSide"><div className="pokemonCard"><span className="playerLabel">{t.opponent}</span><h2>{battleName(target?.species || t.unknown, locale)}</h2><div className="hpTrack"><span className="hpFill" style={hpStyle(targetHp)}/></div><p>{opponentActive ? <>{t.hp}: {opponentActive.fainted ? t.fainted : `${opponentActive.hp_percent}%`}</> : <>{t.hpBucket}: {target ? [t.fainted, '≤25%', '≤50%', '≤75%', '>75%'][target.hpBucket] : '—'}</>} {targetStatus && <b className={`statusTag ${targetStatus}`}>{statusLabel(targetStatus, locale)}</b>}</p><StatChips mon={opponentActive} locale={locale}/></div>{target?.species && <img className="pokemonSprite front" src={spriteUrl(target.species)} alt={battleName(target.species, locale)}/>}</article>
+          <div className="battleCenter"><span>{locale === 'ko' ? `${response.turn}턴` : `Turn ${response.turn}`}</span>{battleState?.weather && <span className={`weatherTag ${battleState.weather.name}`}>{weatherLabel(battleState.weather.name, locale)}</span>}</div>
+          <article className="pokemonSide ownSide">{ownName !== t.unknown && <img className="pokemonSprite back" src={spriteUrl(ownName, true)} alt={battleName(ownName, locale)}/>}<div className="pokemonCard"><span className="playerLabel">{t.you}</span><h2>{battleName(ownName, locale)}</h2><div className="hpTrack"><span className="hpFill" style={hpStyle(ownHp)}/></div><p>{t.hp}: {conditionLabel(own?.condition || '', locale)}{ownActive?.hp && !ownActive.fainted ? ` (${ownActive.hp[0]}/${ownActive.hp[1]})` : ''}</p><StatChips mon={ownActive} locale={locale}/></div></article>
           <div className="teamPreview ownTeam" aria-label={t.yourTeam}>{response.request?.side?.pokemon.map((mon, index) => <span key={index} className={`teamBall ${mon.condition.includes('fnt') ? 'fainted' : ''} ${mon.active ? 'active' : ''}`} title={battleName(String(mon.details || mon.ident || ''), locale)}/>)}</div>
         </div>
+        {battleState && <section className="fieldState" aria-label={t.battleState}>
+          <div><span className="fieldLabel">{t.weather}</span>{battleState.weather
+            ? <b className={`weatherTag ${battleState.weather.name}`}>{weatherLabel(battleState.weather.name, locale)}<small> · {battleState.weather.turns_remaining == null ? t.permanent : `${battleState.weather.turns_remaining} ${t.turnsLeft}`}</small></b>
+            : <span className="noModifiers">{t.clearWeather}</span>}</div>
+          <div><span className="fieldLabel">{t.opponentSide}</span><SideConditions side={battleState.opponent} locale={locale}/></div>
+          <div><span className="fieldLabel">{t.yourSide}</span><SideConditions side={battleState.self} locale={locale}/></div>
+          {battleState.opponent.revealed.length > 0 && <div><span className="fieldLabel">{t.revealed}</span>{battleState.opponent.revealed.map((mon, index) => <b key={`${mon.species}-${index}`} className={`revealedTag ${mon.fainted ? 'fainted' : ''}`}>
+            {battleName(mon.species, locale)} {mon.fainted ? t.fainted : `${mon.hp_percent}%`}{mon.status && !mon.fainted ? ` · ${statusLabel(mon.status, locale)}` : ''}</b>)}</div>}
+        </section>}
         <section className="partyOverview" aria-label={t.partyOverview}><h3>{t.partyOverview}</h3><div className="partyGrid">{party.map((mon, index) => {
           const name = String(mon.details || mon.ident || t.unknown).split(',')[0].replace(/^p\d: /, '')
           const percent = hpPercent(mon.condition); const fainted = mon.condition.includes('fnt')

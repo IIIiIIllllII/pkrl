@@ -2,7 +2,7 @@ import type {BattleFeedback, BattleResponse, ResearchLog, TurnFlag} from '../typ
 
 const ARCHIVE_KEY = 'gen3-lut-playtest-archive-v1'
 const ACTIVE_KEY = 'gen3-lut-playtest-active-v1'
-export const RESEARCH_LOG_VERSION = 2
+export const RESEARCH_LOG_VERSION = 3
 
 /**
  * A place to send finished battles later (Supabase, an internal collector, …).

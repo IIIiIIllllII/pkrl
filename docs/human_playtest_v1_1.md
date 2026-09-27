@@ -94,6 +94,13 @@ opponent species, abilities and items never appear in the serialized response;
 AI switch options stay anonymized mid-battle; and `answer_availability` analysis
 is withheld until the battle is terminal.
 
+Separately from that observation, every AI decision and human action carries a
+`public_state` snapshot (weather and turns remaining, both actives' HP/status,
+stat stages and volatiles, screens/Spikes, revealed Pokémon). It is rebuilt only
+from that player's own protocol stream, never reaches the encoder, and exists so
+analysis can tell a state-dependent decision from a bad one — notably because
+v1.1's `feature_stage_summary` is constant, so the policy never sees stat stages.
+
 ## Known limitations
 
 - Blinding is a UI convention. The stateless replay API carries the policy ID in

@@ -12,6 +12,7 @@ export const UI = {
     downloadLog: 'Download playtest log', copyJson: 'Copy JSON', downloadAll: 'Download all local battles', downloadAllJsonl: 'Download all as JSONL', language: 'Language', battleRoom: 'Battle room', moves: 'Moves', switchPokemon: 'Switch Pokémon', research: 'Research', partyOverview: 'Your party', active: 'Active', reserve: 'Reserve', partySets: 'Party moves & held items', heldItem: 'Held item', noItem: 'No held item',
     cleanOnly: 'clean gen3-lut-v1.1 checkpoints only — contaminated v1 assets are quarantined', hiddenUntilEnd: 'hidden until the battle ends',
     moveClass: 'Class', applies: 'Applies', resolvedTypes: 'Resolved defender types', intScore: 'int8 score', topContributions: 'Largest LUT contributions for the chosen action',
+    battleState: 'Public battle state', weather: 'Weather', clearWeather: 'Clear', turnsLeft: 'turns left', permanent: 'permanent', yourSide: 'Your side', opponentSide: 'Opponent side', noSideEffects: 'no screens or hazards', statStages: 'Stat stages', noStatChanges: 'no stat changes', revealed: 'Revealed',
     trainingDecisions: 'Training decisions', sourceCheckpoint: 'Source checkpoint', quantScale: 'Quantization', blindNote: 'A random checkpoint is chosen for each battle and revealed at the end.', archiveFull: 'Local storage is full — download this battle now so it is not lost',
   },
   ko: {
@@ -25,6 +26,7 @@ export const UI = {
     downloadLog: '플레이테스트 기록 다운로드', copyJson: 'JSON 복사', downloadAll: '로컬 배틀 전체 다운로드', downloadAllJsonl: 'JSONL로 전체 다운로드', language: '언어', battleRoom: '배틀 룸', moves: '기술', switchPokemon: '포켓몬 교체', research: '연구', partyOverview: '내 파티', active: '배틀 중', reserve: '대기', partySets: '파티 기술 및 지닌물건', heldItem: '지닌물건', noItem: '지닌물건 없음',
     cleanOnly: '클린 gen3-lut-v1.1 체크포인트만 사용 — 오염된 v1 자산은 격리됨', hiddenUntilEnd: '배틀이 끝나면 공개',
     moveClass: '분류', applies: '적용', resolvedTypes: '확인된 상대 타입', intScore: 'int8 점수', topContributions: '선택된 행동의 주요 LUT 기여도',
+    battleState: '공개 배틀 상태', weather: '날씨', clearWeather: '맑음', turnsLeft: '턴 남음', permanent: '지속', yourSide: '내 필드', opponentSide: '상대 필드', noSideEffects: '벽/설치기 없음', statStages: '능력 변화', noStatChanges: '능력 변화 없음', revealed: '공개된 포켓몬',
     trainingDecisions: '학습 결정 수', sourceCheckpoint: '원본 체크포인트', quantScale: '양자화', blindNote: '배틀마다 체크포인트가 무작위로 선택되고 종료 시 공개됩니다.', archiveFull: '로컬 저장 공간이 가득 찼습니다 — 기록이 사라지지 않도록 지금 이 배틀을 다운로드하세요',
   },
 } as const
@@ -86,6 +88,22 @@ export const ITEM_KO: Record<string, string> = {
 
 const STATUS_KO: Record<string, string> = {brn: '화상', par: '마비', psn: '독', tox: '맹독', slp: '잠듦', frz: '얼음', fnt: '기절', none: '없음'}
 const TYPE_KO: Record<string, string> = {Normal: '노말', Fire: '불꽃', Water: '물', Electric: '전기', Grass: '풀', Ice: '얼음', Fighting: '격투', Poison: '독', Ground: '땅', Flying: '비행', Psychic: '에스퍼', Bug: '벌레', Rock: '바위', Ghost: '고스트', Dragon: '드래곤', Dark: '악', Steel: '강철'}
+const STAT_LABELS: Record<string, [string, string]> = {
+  atk: ['Atk', '공격'], def: ['Def', '방어'], spa: ['SpA', '특공'], spd: ['SpD', '특방'], spe: ['Spe', '스피드'], accuracy: ['Acc', '명중'], evasion: ['Eva', '회피'],
+}
+const WEATHER_LABELS: Record<string, [string, string]> = {
+  SunnyDay: ['Sun', '쾌청'], RainDance: ['Rain', '비'], Sandstorm: ['Sandstorm', '모래바람'], Hail: ['Hail', '싸라기눈'],
+}
+const EFFECT_LABELS: Record<string, [string, string]> = {
+  Reflect: ['Reflect', '리플렉터'], 'Light Screen': ['Light Screen', '빛의장막'], Safeguard: ['Safeguard', '신비의부적'], Mist: ['Mist', '흰안개'],
+  Spikes: ['Spikes', '압정뿌리기'], Substitute: ['Substitute', '대타출동'], confusion: ['Confusion', '혼란'], 'Leech Seed': ['Leech Seed', '씨뿌리기'],
+  Taunt: ['Taunt', '도발'], Encore: ['Encore', '앵콜'], Disable: ['Disable', '사슬묶기'], Attract: ['Infatuation', '헤롱헤롱'],
+  'Focus Energy': ['Focus Energy', '기충전'], Curse: ['Curse', '저주'], Ingrain: ['Ingrain', '뿌리박기'], Yawn: ['Yawn', '하품'],
+  Torment: ['Torment', '트집'], Nightmare: ['Nightmare', '악몽'], 'Mean Look': ['Mean Look', '검은눈빛'], Uproar: ['Uproar', '소란'],
+  Bide: ['Bide', '참기'], Charge: ['Charge', '충전'], 'Mud Sport': ['Mud Sport', '흙놀이'], 'Water Sport': ['Water Sport', '물놀이'],
+  Foresight: ['Foresight', '꿰뚫어보기'], 'Flash Fire': ['Flash Fire', '타오르는불꽃'],
+}
+
 const DEBUG_KO: Record<string, string> = {
   damage: '공격', status: '변화기', setup: '랭크업', debuff: '능력 저하', recovery: '회복', protect: '방어', weather: '날씨', field: '필드', phaze: '강제 교체', pivot: '교체기', self_ko: '자폭', fixed: '고정 대미지', utility: '보조',
   immune: '무효', quarter: '¼배', half: '½배', neutral: '1배', double: '2배', quadruple: '4배', physical: '물리', special: '특수', legal: '사용 가능', illegal: '사용 불가',
@@ -96,6 +114,14 @@ export function teamLabel(id: string, fallback: string, locale: Locale): string 
 export function categoryLabel(category: string, locale: Locale): string { return label(CATEGORY_LABELS[category] || [category, category], locale) }
 export function statusLabel(status: string, locale: Locale): string { return locale === 'ko' ? STATUS_KO[status] || status : status }
 export function debugLabel(value: string | null, locale: Locale): string | null { return locale === 'ko' && value ? DEBUG_KO[value] || value : value }
+export function statLabel(stat: string, locale: Locale): string { return label(STAT_LABELS[stat] || [stat, stat], locale) }
+export function boostLabel(stat: string, stages: number, locale: Locale): string { return `${statLabel(stat, locale)} ${stages > 0 ? '+' : '−'}${Math.abs(stages)}` }
+export function weatherLabel(name: string, locale: Locale): string { return label(WEATHER_LABELS[name] || [name, name], locale) }
+export function effectLabel(name: string, locale: Locale): string {
+  const counter = /^(perish|stockpile)(\d)$/.exec(name)
+  if (counter) return counter[1] === 'perish' ? (locale === 'ko' ? `멸망의노래 ${counter[2]}` : `Perish ${counter[2]}`) : (locale === 'ko' ? `비축 ${counter[2]}` : `Stockpile ${counter[2]}`)
+  return label(EFFECT_LABELS[name] || [name, name], locale)
+}
 export function itemName(value: string, locale: Locale): string { return locale === 'ko' ? ITEM_KO[value] || value : value }
 
 export function battleName(value: string, locale: Locale): string {

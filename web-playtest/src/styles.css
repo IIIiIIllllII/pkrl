@@ -113,6 +113,18 @@ select, input, textarea { width: 100%; padding: .64rem .7rem; border: 1px solid 
 .battleCenter { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%,-50%); }
 .battleCenter span { padding: 3px 8px; border-radius: 10px; color: rgba(0,0,0,.48); background: rgba(255,255,255,.4); font-size: 10px; font-weight: bold; }
 .statusTag { margin-left: 5px; padding: 1px 5px; border-radius: 3px; background: #a56fc0; color: white; font-size: 9px; text-transform: uppercase; }.statusTag.brn { background: #cf5846; }.statusTag.par { background: #c7a82c; }.statusTag.psn,.statusTag.tox { background: #9865a8; }.statusTag.slp { background: #777; }.statusTag.frz { background: #5aaabd; }
+.modifiers { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+.boostTag, .volatileTag, .sideTag, .weatherTag, .revealedTag { padding: 1px 5px; border-radius: 3px; color: white; font-size: 9px; white-space: nowrap; }
+.boostTag.up { background: #3c8a3f; }.boostTag.down { background: #b8453a; }.volatileTag { background: #5f6f86; }
+.noModifiers { color: #888; font-size: 9px; font-style: italic; }
+.battleCenter { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.weatherTag { background: #7d7d7d; }.weatherTag.SunnyDay { background: #d9822b; }.weatherTag.RainDance { background: #3f74b8; }.weatherTag.Sandstorm { background: #a28a52; }.weatherTag.Hail { background: #6fa8c2; }
+.battleCenter .weatherTag { color: white; font-size: 10px; }
+.fieldState { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px 14px; padding: 9px 12px; border-bottom: 1px solid #aaa; background: #f3f3f3; font-size: 11px; }
+.fieldState > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.fieldLabel { margin-right: 3px; color: #555; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+.sideTag { background: #6b5aa6; }.sideTag small, .weatherTag small { font-size: 9px; font-weight: normal; }
+.revealedTag { color: #333; background: #ddd; border: 1px solid #bbb; font-weight: normal; }.revealedTag.fainted { opacity: .55; text-decoration: line-through; }
 .teamPreview { position: absolute; z-index: 5; display: flex; gap: 2px; }.ownTeam { right: 29px; bottom: 7px; }
 .teamBall { width: 14px; height: 14px; margin: 0; border-width: 1px; }.teamBall.fainted { filter: grayscale(1); opacity: .35; }.teamBall.active { box-shadow: 0 0 0 2px #f6d04d; }
 
@@ -160,5 +172,5 @@ table { width: 100%; border-collapse: collapse; font-size: 11px; }th,td { paddin
   .setup { grid-template-columns: 1fr; }.setup > * { grid-column: 1!important; }.battleGrid { display: block; margin: 0; }.battleHeader { border-left: 0; border-right: 0; }
   .battleStage { height: 340px; }.pokemonCard { width: 190px; }.opponentSide .pokemonCard { left: 9px; top: 12px; }.ownSide .pokemonCard { right: 9px; bottom: 23px; }
   .pokemonSprite.front { right: 20px; top: 78px; width: 125px; height: 125px; }.pokemonSprite.back { left: 20px; bottom: 45px; width: 145px; height: 145px; }.battleStage::before { right: 3px; }.battleStage::after { left: -35px; }
-  .partyGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyMember { height: 54px; }.setGrid { grid-template-columns: 1fr; }.actionGroup { grid-template-columns: 1fr; }.groupLabel { padding: 0; text-align: left; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.flagForm { grid-template-columns: 1fr; }.survey { grid-template-columns: 1fr; }.debug { overflow-x: auto; }
+  .partyGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyMember { height: 54px; }.fieldState { grid-template-columns: 1fr; }.setGrid { grid-template-columns: 1fr; }.actionGroup { grid-template-columns: 1fr; }.groupLabel { padding: 0; text-align: left; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.flagForm { grid-template-columns: 1fr; }.survey { grid-template-columns: 1fr; }.debug { overflow-x: auto; }
 }

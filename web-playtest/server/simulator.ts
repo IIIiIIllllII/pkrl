@@ -5,8 +5,9 @@ import {dirname, join} from 'node:path'
 import {gunzipSync} from 'node:zlib'
 import type {
   ActionDiagnostic, AIDecision, AnswerAvailability, BattleApiInput, BattleRequest, BattleResponse,
-  HumanAction, LegalAction, MoveRequest, Player, PolicyAsset, PublicState,
+  HumanAction, LegalAction, MoveRequest, Player, PolicyAsset, PublicBattleState, PublicState,
 } from '../src/types'
+import {PublicBattleTracker} from '../src/research/publicBattleState'
 import {TEAM_FIXTURES, teamById} from '../src/data/teams'
 import {encodeRequest, featureCategories} from '../src/policy/encoder'
 import {FEATURE_VALUES, SCHEMA_VERSION} from '../src/policy/schema'
@@ -163,7 +164,7 @@ function publicLines(chunks: string[]): string[] {
   return chunks.flatMap(chunk => chunk.split('\n')).filter(line => line.startsWith('|') && !ignored.has(line.split('|')[1]))
 }
 
-async function nextView(stream: any, player: Player, publicState: PublicState): Promise<PlayerView> {
+async function nextView(stream: any, player: Player, publicState: PublicState, tracker: PublicBattleTracker): Promise<PlayerView> {
   const chunks: string[] = []
   for (let reads = 0; reads < 20; reads++) {
     const chunk = await stream.read()
@@ -172,6 +173,7 @@ async function nextView(stream: any, player: Player, publicState: PublicState): 
     let request: BattleRequest | null = null; let terminal = false; let winner: string | null = null
     for (const line of chunk.split('\n')) {
       updatePublic(player, publicState, line)
+      tracker.apply(line)
       if (line.startsWith('|request|')) request = JSON.parse(line.slice('|request|'.length))
       else if (line.startsWith('|win|')) { terminal = true; winner = line.slice(5) }
       else if (line === '|tie') terminal = true
@@ -239,7 +241,7 @@ function answerAvailability(request: BattleRequest, mask: boolean[], chosenIndex
   return {classification, active_answers: active, bench_answers: bench, chosen_was_answer: chosenWasAnswer}
 }
 
-function diagnostics(asset: PolicyAsset, request: BattleRequest, battleId: string): {decision: AIDecision; choice: string} {
+function diagnostics(asset: PolicyAsset, request: BattleRequest, battleId: string, publicBattleState: PublicBattleState): {decision: AIDecision; choice: string} {
   const {features, mask} = encodeRequest(request)
   const scores = policyScores(asset, features, mask)
   const integers = quantizedScores(asset, features, mask)
@@ -280,6 +282,7 @@ function diagnostics(asset: PolicyAsset, request: BattleRequest, battleId: strin
   integers.forEach((value, index) => { if (value != null && (integerBest < 0 || value > (integers[integerBest] as number))) integerBest = index })
   return {choice: selected.choice, decision: {
     battle_id: battleId, policy_id: asset.policy_id, turn: request.public?.turn || 0, observation,
+    public_state: publicBattleState,
     legal_actions: actions, legal_action_mask: mask, candidates, chosen_action: candidates[chosen],
     resolved_defender_types: request.public?.target?.types || [],
     top1_score: ranking.top1_score, top2_score: ranking.top2_score, top2_index: ranking.top2_index,
@@ -308,40 +311,42 @@ export async function replayBattle(input: BattleApiInput, testTeams?: {human: Ar
   const humanTeam = teamById(input.human_team_id)!; const aiTeam = teamById(input.ai_team_id)!
   const battle = new BattleStream({keepAlive: true}); const streams = getPlayerStreams(battle)
   const publicState = {p1: initialPublic(), p2: initialPublic()}
+  // Display/research only: each tracker sees exactly its own player's stream.
+  const trackers = {p1: new PublicBattleTracker('p1'), p2: new PublicBattleTracker('p2')}
   const allHumanChunks: string[] = []; const aiDecisions: AIDecision[] = []; const humanActions: HumanAction[] = []
   const aiRequests: BattleRequest[] = []
   let consumed = 0
   try {
     battle.write(`>start ${JSON.stringify({formatid: 'gen3customgame', seed: input.seed})}\n>player p1 ${JSON.stringify({name: HUMAN_PLAYER_NAME, team: testTeams?.human || humanTeam.team})}\n>player p2 ${JSON.stringify({name: AI_PLAYER_NAME, team: testTeams?.ai || aiTeam.team})}`)
-    let [human, ai] = await Promise.all([nextView(streams.p1, 'p1', publicState.p1), nextView(streams.p2, 'p2', publicState.p2)])
+    let [human, ai] = await Promise.all([nextView(streams.p1, 'p1', publicState.p1, trackers.p1), nextView(streams.p2, 'p2', publicState.p2, trackers.p2)])
     allHumanChunks.push(...human.chunks)
     for (let cycle = 0; cycle < 1000; cycle++) {
       if (human.terminal || ai.terminal) {
         if (consumed !== input.human_choices.length) throw new Error('choice history continues after battle end')
         attachAnswerAvailability(aiDecisions, aiRequests)
-        return response(input, asset, null, [], allHumanChunks, aiDecisions, humanActions, true, human.winner || ai.winner, publicState.p1.turn)
+        return response(input, asset, null, [], allHumanChunks, trackers.p1.snapshot(), aiDecisions, humanActions, true, human.winner || ai.winner, publicState.p1.turn)
       }
       const humanLegal = human.request ? legalActions(human.request, true) : []
       const needsHuman = Boolean(human.request && !human.request.wait && humanLegal.length)
       if (needsHuman && consumed >= input.human_choices.length) {
-        return response(input, asset, safeRequest(human.request!, publicState.p1), humanLegal, allHumanChunks, aiDecisions, humanActions, false, null, publicState.p1.turn)
+        return response(input, asset, safeRequest(human.request!, publicState.p1), humanLegal, allHumanChunks, trackers.p1.snapshot(), aiDecisions, humanActions, false, null, publicState.p1.turn)
       }
       const writes: string[] = []
       if (needsHuman) {
         const choice = input.human_choices[consumed++]
         const action = humanLegal.find(candidate => candidate.choice === choice)
         if (!action) throw new Error(`illegal human action at choice ${consumed}: ${choice}`)
-        humanActions.push({turn: publicState.p1.turn, choice, label: action.label, kind: action.kind})
+        humanActions.push({turn: publicState.p1.turn, choice, label: action.label, kind: action.kind, public_state: trackers.p1.snapshot()})
         writes.push(`>p1 ${choice}`)
       }
       if (ai.request && !ai.request.wait) {
-        const safe = safeRequest(ai.request, publicState.p2); const result = diagnostics(asset, safe, input.battle_id)
+        const safe = safeRequest(ai.request, publicState.p2); const result = diagnostics(asset, safe, input.battle_id, trackers.p2.snapshot())
         aiDecisions.push(result.decision); aiRequests.push(safe); writes.push(`>p2 ${result.choice}`)
       }
       if (!writes.length) throw new Error('battle reached a state with no actionable request')
       battle.write(writes.join('\n'))
       const previousLineCount = publicLines(allHumanChunks).length
-      ;[human, ai] = await Promise.all([nextView(streams.p1, 'p1', publicState.p1), nextView(streams.p2, 'p2', publicState.p2)])
+      ;[human, ai] = await Promise.all([nextView(streams.p1, 'p1', publicState.p1, trackers.p1), nextView(streams.p2, 'p2', publicState.p2, trackers.p2)])
       allHumanChunks.push(...human.chunks)
       if (aiDecisions.length) aiDecisions.at(-1)!.resulting_visible_events = publicLines(allHumanChunks).slice(previousLineCount)
     }
@@ -362,10 +367,10 @@ function attachAnswerAvailability(decisions: AIDecision[], requests: BattleReque
   })
 }
 
-function response(input: BattleApiInput, asset: PolicyAsset, request: BattleRequest | null, legal: LegalAction[], chunks: string[], decisions: AIDecision[], humanActions: HumanAction[], terminal: boolean, winner: string | null, turn: number): BattleResponse {
+function response(input: BattleApiInput, asset: PolicyAsset, request: BattleRequest | null, legal: LegalAction[], chunks: string[], publicBattleState: PublicBattleState, decisions: AIDecision[], humanActions: HumanAction[], terminal: boolean, winner: string | null, turn: number): BattleResponse {
   return {battle_id: input.battle_id, seed: input.seed, simulator: SIMULATOR_ID, feature_schema: SCHEMA_VERSION,
     policy_id: input.policy_id, policy_provenance: policyProvenance(asset),
-    request, legal_actions: legal, public_log: publicLines(chunks), turn,
+    request, legal_actions: legal, public_log: publicLines(chunks), public_state: publicBattleState, turn,
     ai_decisions: decisions, human_actions: humanActions, terminal, winner}
 }
 

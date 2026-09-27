@@ -15,7 +15,7 @@ import {
   createResearchLog, finalizeLog, flagTurn, loadArchive, publishLog, RESEARCH_LOG_VERSION,
   remoteSinkName, saveToArchive, setRemoteSink, toJsonl,
 } from '../src/research/logging'
-import type {AIDecision, BattleResponse, ResearchLog} from '../src/types'
+import type {AIDecision, BattleResponse, PublicBattleState, ResearchLog} from '../src/types'
 
 const provenance = {
   policy_id: 'v1.1-50m', schema_version: 'gen3-lut-v1.1', semantics_revision: '2026-09-27-reboot',
@@ -26,8 +26,18 @@ const provenance = {
   evaluation: null,
 }
 
+const publicState: PublicBattleState = {
+  perspective: 'p2', turn: 8, weather: {name: 'RainDance', source: 'move', started_turn: 7, turns_remaining: 4},
+  self: {player: 'p2', name: 'AI', conditions: [{name: 'Reflect', layers: null, started_turn: 6, turns_remaining: 3}],
+    active: {species: 'Starmie', hp_percent: 64, hp: [180, 281], status: '', fainted: false, boosts: {}, volatiles: []},
+    revealed: [{species: 'Starmie', hp_percent: 64, status: '', fainted: false}]},
+  opponent: {player: 'p1', name: 'Human', conditions: [{name: 'Spikes', layers: 2, started_turn: 3, turns_remaining: null}],
+    active: {species: 'Gyarados', hp_percent: 88, status: 'par', fainted: false, boosts: {atk: 2, spe: 1}, volatiles: ['Substitute']},
+    revealed: [{species: 'Gyarados', hp_percent: 88, status: 'par', fainted: false}]},
+}
+
 const decision: AIDecision = {
-  battle_id: 'b-1', policy_id: 'v1.1-50m', turn: 8, observation: {turn: 8},
+  battle_id: 'b-1', policy_id: 'v1.1-50m', turn: 8, observation: {turn: 8}, public_state: publicState,
   legal_actions: [{index: 0, choice: 'move 1', label: 'Surf', kind: 'move'}],
   legal_action_mask: [true, false, false, false, false, false, false, false, false],
   candidates: [], chosen_action: {index: 0, label: 'Surf', kind: 'move', legal: true, score: 1.5,
@@ -41,8 +51,8 @@ const decision: AIDecision = {
 const response: BattleResponse = {
   battle_id: 'b-1', seed: [1, 2, 3, 4], simulator: 'pinned', feature_schema: 'gen3-lut-v1.1',
   policy_id: 'v1.1-50m', policy_provenance: provenance, request: null, legal_actions: [],
-  public_log: ['|turn|8', '|move|p2a: X|Surf'], turn: 12, ai_decisions: [decision],
-  human_actions: [{turn: 8, choice: 'move 1', label: 'Protect', kind: 'move'}],
+  public_log: ['|turn|8', '|move|p2a: X|Surf'], public_state: {...publicState, perspective: 'p1'}, turn: 12, ai_decisions: [decision],
+  human_actions: [{turn: 8, choice: 'move 1', label: 'Protect', kind: 'move', public_state: {...publicState, perspective: 'p1'}}],
   terminal: true, winner: 'Human',
 }
 
@@ -61,6 +71,19 @@ describe('research logging', () => {
     expect(log.human_actions).toEqual(response.human_actions)
     expect(log.ai_decisions[0].margin).toBe(1.25)
     expect(log.ai_decisions[0].chosen_action.quantized_score).toBe(22)
+  })
+
+  it('exports the public battle state behind every AI decision and human action', () => {
+    const log = createResearchLog(response, 'human-team', 'ai-team', ['move 1'])
+    const exported = JSON.parse(toJsonl([finalizeLog(log, response)]).trim()) as ResearchLog
+    const state = exported.ai_decisions[0].public_state
+    expect(state).toEqual(publicState)
+    expect(state.weather).toEqual({name: 'RainDance', source: 'move', started_turn: 7, turns_remaining: 4})
+    expect(state.opponent.active).toMatchObject({hp_percent: 88, status: 'par', boosts: {atk: 2, spe: 1}, volatiles: ['Substitute']})
+    expect(state.opponent.active).not.toHaveProperty('hp')
+    expect(state.opponent.conditions).toEqual([{name: 'Spikes', layers: 2, started_turn: 3, turns_remaining: null}])
+    expect(state.self.conditions[0]).toMatchObject({name: 'Reflect', turns_remaining: 3})
+    expect(exported.human_actions[0].public_state.perspective).toBe('p1')
   })
 
   it('flags a weird turn with its policy and serializes feedback', () => {

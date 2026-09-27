@@ -243,7 +243,7 @@ describe('research logging fields', () => {
     const decision = result.ai_decisions[0]
     expect(Object.keys(decision).sort()).toEqual([
       'battle_id', 'candidates', 'chosen_action', 'legal_action_mask', 'legal_actions', 'margin',
-      'observation', 'policy_id', 'quantized_selected_action', 'quantized_top1_score',
+      'observation', 'policy_id', 'public_state', 'quantized_selected_action', 'quantized_top1_score',
       'resolved_defender_types', 'resulting_visible_events', 'top1_score', 'top2_index', 'top2_score', 'turn',
     ])
     expect(decision.battle_id).toBe('log-fields')
@@ -272,6 +272,35 @@ describe('research logging fields', () => {
       expect(candidate.feature_ids).toHaveLength(20)
       expect(candidate.activated_feature_ids!.every(value => value >= 0 && value < 349)).toBe(true)
     }
+  })
+
+  it('records the public weather, stat stages and screens behind each decision', async () => {
+    const human = [{species: 'Ninjask', level: 100, ability: 'Speed Boost', moves: ['Swords Dance', 'Reflect', 'Sunny Day']}]
+    const ai = [{species: 'Blissey', level: 50, ability: 'Natural Cure', moves: ['Seismic Toss']},
+      {species: 'Mewtwo', level: 50, ability: 'Pressure', moves: ['Psychic']}]
+    const input = {...base, battle_id: 'public-state', human_choices: ['move 1', 'move 2', 'move 3']}
+    const result = await replayBattle(input, {human, ai})
+    expect(result.terminal).toBe(false)
+    // Human view at the start of turn 4.
+    expect(result.public_state.turn).toBe(4)
+    expect(result.public_state.weather).toEqual({name: 'SunnyDay', source: 'move', started_turn: 3, turns_remaining: 4})
+    expect(result.public_state.self.active).toMatchObject({species: 'Ninjask', boosts: {atk: 2, spe: 3}})
+    expect(result.public_state.self.active?.hp?.[1]).toBeGreaterThan(0)
+    expect(result.public_state.self.conditions).toEqual([{name: 'Reflect', layers: null, started_turn: 2, turns_remaining: 3}])
+    expect(result.public_state.opponent.active).toMatchObject({species: 'Blissey', status: '', boosts: {}})
+    expect(result.public_state.opponent.active).not.toHaveProperty('hp')
+    // The AI's turn-3 decision saw the human's setup from its own side of the field.
+    const turn3 = result.ai_decisions.find(decision => decision.turn === 3)!
+    expect(turn3.public_state.perspective).toBe('p2')
+    expect(turn3.public_state.opponent.active).toMatchObject({species: 'Ninjask', boosts: {atk: 2, spe: 2}})
+    expect(turn3.public_state.opponent.active).not.toHaveProperty('hp')
+    expect(turn3.public_state.opponent.conditions).toEqual([{name: 'Reflect', layers: null, started_turn: 2, turns_remaining: 4}])
+    expect(turn3.public_state.weather).toBeNull()
+    expect(result.human_actions[2].public_state.self.active?.boosts).toEqual({atk: 2, spe: 2})
+    // Unrevealed bench members never enter any public state.
+    expect(JSON.stringify([result.public_state, result.ai_decisions.map(decision => decision.public_state)])).not.toContain('Mewtwo')
+    // The policy input is unchanged: the observation carries no public_state.
+    expect(turn3.observation).not.toHaveProperty('public_state')
   })
 
   it('serializes the whole battle log without loss', async () => {
