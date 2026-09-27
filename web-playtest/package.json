@@ -7,13 +7,14 @@
   "scripts": {
     "predev": "node scripts/embed-simulator.mjs",
     "dev": "vite",
-    "build:server": "node scripts/embed-simulator.mjs && esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs",
-    "build": "node scripts/embed-simulator.mjs && esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs && tsc -b && vite build",
+    "build:server": "node scripts/embed-simulator.mjs && esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs && esbuild server/playtest.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/playtest.cjs",
+    "build": "node scripts/embed-simulator.mjs && esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs && esbuild server/playtest.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/playtest.cjs && tsc -b && vite build",
     "pretest": "node scripts/embed-simulator.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:simulator": "node scripts/verify-simulator.mjs",
-    "export:policies": "../.venv/bin/python ../scripts/export_web_policies.py"
+    "export:policies": "../.venv/bin/python ../scripts/export_web_policies.py",
+    "export:playtests": "node scripts/export-playtests.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.1.1",

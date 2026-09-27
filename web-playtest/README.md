@@ -115,7 +115,7 @@ side; the opponent is a percentage. Stat stages survive Baton Pass (with its Gen
 and the `observation` block are unchanged. This matters for analysis because
 v1.1 encodes `feature_stage_summary` as a constant, so the policy never sees
 stat stages even though the log now does. Research logs with this field are
-`research_log_version: 3`.
+`research_log_version: 3` or later; version 4 adds `metadata.battle_complete`.
 
 To help separate an AI mistake from a team gap, each decision also gets an
 `answer_availability` block once the battle is over, classifying the turn as
@@ -126,8 +126,159 @@ same test over switch-legal bench movesets — not a strategic oracle. It is
 withheld until the battle ends so a live human player cannot read the AI's bench
 out of an in-progress response.
 
-Data stays in `localStorage`. `setRemoteSink` accepts a `{name, submit}` sink so
-a backend such as Supabase can be added later without touching battle logic.
+Every finished battle is saved in `localStorage` first and then, unless the
+tester opts out, uploaded for research (see [Remote collection](#remote-collection)).
+
+## Remote collection
+
+```
+battle finishes → finalized ResearchLog → saved in localStorage
+    → POST /api/playtest (same origin) → Vercel function → Supabase Postgres
+        success: marked uploaded · failure: stays local, marked pending, retried later
+```
+
+The browser only ever calls its own `/api/playtest`. The Supabase secret key is
+a server-side environment variable read by `api/playtest.mjs`; it is never in
+browser code (a test scans `src/` and the build is checked for it).
+
+### What is sent
+
+Exactly one body per battle revision:
+
+```json
+{"submission_id": "<uuid>", "revision": 1, "log": { /* the finalized ResearchLog */ }}
+```
+
+`log` is the same object the app already exports (metadata with the hidden
+policy ID and provenance, AI decisions with scores, features and `public_state`,
+human actions, the public battle log, turn flags and end-of-battle feedback).
+Upload bookkeeping is stripped first. Nothing else is sent: no name, email,
+account, cookies (`credentials: 'omit'`), analytics or fingerprinting. The
+collector stores the log plus searchable columns derived from it and the
+deployment's own `VERCEL_GIT_COMMIT_SHA`; it never stores the IP address or any
+request header. (Vercel's own infrastructure logs are outside this database.)
+
+### Hidden-information boundary
+
+`server/playtest.ts` validates the body as an allowlist of the existing
+ResearchLog shape before anything is stored. Unknown keys are rejected rather
+than stored, including on AI decisions, their observation (`turn, own_active,
+target, weather, moves, available_switch_count`), the observation target, and
+`public_state`. It also rejects named AI switch options (they must stay
+"Switch option N"), exact opponent HP in `public_state`,
+any `hidden_debug_state_included` other than `false`, unfinished
+battles (`battle_complete !== true`), contaminated or unknown policy IDs,
+provenance that disagrees with the claimed checkpoint, unknown flag categories
+and strengths, flag comments over 500 characters, feedback comments over 2,000,
+and bodies over 1.5 MB. Errors are fixed codes such as
+`{"ok": false, "error": "invalid_submission"}`; submitted text and database
+errors are never echoed. Comments are stored as plain JSON strings and rendered
+only as React text.
+
+### Idempotency and later feedback
+
+A battle gets one `submission_id`, generated once and kept in its archive entry,
+so every retry is the same submission. Flags and feedback can be added after the
+battle ends; each such change bumps the local `revision` and re-queues the
+upload. The database function `submit_playtest` applies it atomically:
+
+| request | response |
+| --- | --- |
+| new `submission_id` | `201 {"ok": true, "submission_id": …, "duplicate": false}` |
+| same `submission_id`, same or older revision | `200 {…, "duplicate": true}` (no change) |
+| same `submission_id`, newer revision | `200 {…, "duplicate": false, "updated": true}` (log replaced) |
+| `submission_id` reused for another battle | `409 {"ok": false, "error": "submission_conflict"}` |
+
+### Retries, opt-out and old archives
+
+- Pending uploads are retried when the app loads, when the browser comes back
+  online, after every finished battle, and from **Retry uploads** in the lobby or
+  result panel (which ignores backoff).
+- Backoff is 30 s doubling to 1 h per battle. A pass makes at most 10 requests and
+  stops at the first network/5xx/429 failure, so an unreachable collector costs
+  one request per pass. A 4xx validation rejection is marked `failed` and is not
+  retried; the local copy is always kept.
+- Upload state lives on the archive entry as `remote_submission` (`pending`,
+  `uploaded` or `failed`, with `attempts`, `uploaded_at`, `last_error`). It is
+  stripped from JSON/JSONL exports, which keep the plain ResearchLog shape.
+- Archives written before this feature load unchanged and are **never**
+  uploaded automatically: their testers were not shown the notice.
+- The lobby shows the disclosure and a **Submit playtest logs for research**
+  checkbox (on by default). While it is off, no request is made at all; battles
+  finished while it was off stay local-only even if it is turned back on.
+- If the local save fails (storage full), the upload is still attempted as a
+  backup, with the same submission ID reused for later revisions.
+
+### Supabase setup
+
+1. Create a Supabase project.
+2. In **SQL Editor**, run
+   [`supabase/migrations/20260927000000_playtest_submissions.sql`](supabase/migrations/20260927000000_playtest_submissions.sql)
+   (or `supabase db push` with the Supabase CLI). It creates
+   `playtest_submissions` and `submit_playtest()`, enables row-level security with
+   no policies, revokes the table and function from `anon`/`authenticated`, and
+   grants them to `service_role`. It is safe to re-run.
+3. In **Project Settings → API**, copy the project URL and a **secret** key
+   (`sb_secret_…`, or the legacy `service_role` key). Do not use the publishable/anon
+   key; it has no access by design.
+
+### Environment variables
+
+| name | where | value |
+| --- | --- | --- |
+| `SUPABASE_URL` | Vercel (Production + Preview), `.env.local` | `https://<project-ref>.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Vercel (Production + Preview), `.env.local` | the secret key |
+
+Never prefix them with `VITE_`. Without them the deployed endpoint answers
+`503 collector_unavailable` and every battle simply stays pending locally.
+`.env*` files are git-ignored; copy [`.env.example`](.env.example) to start.
+
+### Local development with collection
+
+```bash
+cd web-playtest
+cp .env.example .env.local   # optional: fill in to write to a real Supabase project
+npm run dev
+```
+
+The dev server mounts `/api/playtest` with the same handler as Vercel. Without
+credentials it logs `in-memory dev store` and keeps submissions in memory, so
+the upload UI works offline.
+
+### Verify a deployment
+
+After a finished battle, the result panel should show **✓ Saved locally** and
+**✓ Uploaded for research**. Then, in the Supabase SQL editor:
+
+```sql
+select submission_id, revision, battle_id, policy_id, result, flagged_turn_count,
+       has_feedback, received_at, app_commit
+from public.playtest_submissions order by received_at desc limit 10;
+```
+
+A misconfigured deployment shows **⚠ Upload pending**; `last_error` in the
+archive entry says why (`collector_unavailable`, `storage_error`, …).
+
+### Export collected data
+
+With the same two variables in the environment (never in the web build):
+
+```bash
+cd web-playtest
+node --env-file=.env.local scripts/export-playtests.mjs --out playtests.jsonl
+# options: --format json   --envelope   --since 2026-09-27T00:00:00Z   --policy v1.1-100m
+```
+
+Each line is one stored ResearchLog, the same shape as the app's local
+**Download all as JSONL**, so both feed the same analysis. `--envelope` wraps
+each as `{"submission": {columns…}, "payload": log}`. Directly with `psql` and
+the database connection string:
+
+```bash
+psql "$DATABASE_URL" -At -c "select payload::text from public.playtest_submissions order by received_at, id" > playtests.jsonl
+```
+
+(Use `-At`, not `\copy`, which escapes backslashes inside comments.)
 
 ## Refresh policy assets
 
@@ -173,8 +324,13 @@ npm run build
 3. Select Node.js 22.x (at least 22.18).
 4. Leave the detected build command as `npm run build` and output directory as
    `dist`.
-5. Deploy. No environment variables, Python runtime, database, or credentials
-   are required.
+5. Under **Settings → Environment Variables**, add `SUPABASE_URL` and
+   `SUPABASE_SERVICE_ROLE_KEY` for Production and Preview (see
+   [Remote collection](#remote-collection)). The battle itself needs no
+   variables, Python runtime or database; without these two the site still works
+   and uploads stay pending in each browser.
+6. Deploy, finish one battle, and check the result panel and the
+   verification query above.
 
 For a CLI deployment from the app directory:
 
@@ -204,6 +360,14 @@ behavioural test pool, not a final benchmark.
 - A full battle log is roughly 320 KB (about 14 KB per AI decision), so the
   `localStorage` archive holds on the order of fifteen battles. A failed save is
   reported in the UI rather than swallowed; download battles as you go.
+- The collector's rate limit (30 requests per minute per client) is in memory
+  per serverless instance, so it is best-effort rather than global. Blindness
+  also applies here: a tester can read their own upload in the network panel.
+- Remote collection does not re-verify a log against the simulator. It enforces
+  the ResearchLog shape and privacy invariants, but a hand-crafted log with
+  plausible values would be accepted. Treat submissions as tester reports.
+- JSONB normalizes key order and whitespace; exported payloads are the same
+  values, not byte-identical text.
 - Stateless replay cost grows with battle length, though it avoids persistent
   infrastructure and keeps simulator-hidden state off the client.
 - `feature_damage_fraction`, `feature_can_ko` and `feature_stage_summary` are

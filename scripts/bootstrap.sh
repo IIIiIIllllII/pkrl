@@ -18,6 +18,7 @@ fi
   cd web-playtest
   node scripts/embed-simulator.mjs
   ./node_modules/.bin/esbuild server/simulator.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/simulator.cjs
+  ./node_modules/.bin/esbuild server/playtest.ts --bundle --platform=node --format=cjs --target=node22 --outfile=server-dist/playtest.cjs
   node node_modules/typescript/bin/tsc -b
   node node_modules/vite/bin/vite.js build
 )

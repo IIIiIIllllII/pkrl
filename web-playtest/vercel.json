@@ -3,5 +3,5 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "functions": {"api/battle.mjs": {"maxDuration": 30}}
+  "functions": {"api/battle.mjs": {"maxDuration": 30}, "api/playtest.mjs": {"maxDuration": 10}}
 }

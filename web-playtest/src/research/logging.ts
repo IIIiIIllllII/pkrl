@@ -2,7 +2,10 @@ import type {BattleFeedback, BattleResponse, ResearchLog, TurnFlag} from '../typ
 
 const ARCHIVE_KEY = 'gen3-lut-playtest-archive-v1'
 const ACTIVE_KEY = 'gen3-lut-playtest-active-v1'
-export const RESEARCH_LOG_VERSION = 3
+export const RESEARCH_LOG_VERSION = 4
+/** Free-text limits, enforced by the inputs and again by the collector. */
+export const FLAG_COMMENT_MAX = 500
+export const FEEDBACK_COMMENT_MAX = 2000
 
 /**
  * A place to send finished battles later (Supabase, an internal collector, …).
@@ -51,10 +54,18 @@ export function flagTurn(log: ResearchLog, turn: number, chosen: string, categor
 export function finalizeLog(log: ResearchLog, response: BattleResponse, feedback?: BattleFeedback): ResearchLog {
   return {
     ...log,
-    metadata: {...log.metadata, final_winner: response.winner, turn_count: response.turn},
+    // A battle started under an older log version is finished under this one.
+    metadata: {...log.metadata, final_winner: response.winner, turn_count: response.turn, battle_complete: response.terminal,
+      research_log_version: RESEARCH_LOG_VERSION},
     ai_decisions: response.ai_decisions, human_actions: response.human_actions,
     public_log: response.public_log, feedback,
   }
+}
+
+/** The research log itself, without this browser's upload bookkeeping. */
+export function researchPayload(log: ResearchLog): ResearchLog {
+  const {remote_submission: _local, ...payload} = log
+  return payload
 }
 
 export function loadArchive(): ResearchLog[] {
@@ -67,7 +78,10 @@ export function loadArchive(): ResearchLog[] {
  */
 export function saveToArchive(log: ResearchLog): {saved: boolean; error?: string} {
   const archive = loadArchive(); const index = archive.findIndex(item => item.metadata.battle_id === log.metadata.battle_id)
-  if (index >= 0) archive[index] = log; else archive.push(log)
+  // Re-saving a battle (a later flag or feedback) keeps its upload bookkeeping.
+  const remote = log.remote_submission ?? (index >= 0 ? archive[index].remote_submission : undefined)
+  const entry = remote ? {...log, remote_submission: remote} : researchPayload(log)
+  if (index >= 0) archive[index] = entry; else archive.push(entry)
   try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive)); return {saved: true} }
   catch (problem) { return {saved: false, error: problem instanceof Error ? problem.message : String(problem)} }
 }
@@ -89,7 +103,7 @@ export function downloadJson(filename: string, value: unknown): void {
 
 /** One JSON object per line, so a bundle can be streamed into a warehouse. */
 export function toJsonl(logs: ResearchLog[]): string {
-  return logs.map(log => JSON.stringify(log)).join('\n') + (logs.length ? '\n' : '')
+  return logs.map(log => JSON.stringify(researchPayload(log))).join('\n') + (logs.length ? '\n' : '')
 }
 export function downloadJsonl(filename: string, logs: ResearchLog[]): void {
   download(filename, toJsonl(logs), 'application/x-ndjson')

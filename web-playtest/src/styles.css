@@ -174,3 +174,8 @@ table { width: 100%; border-collapse: collapse; font-size: 11px; }th,td { paddin
   .pokemonSprite.front { right: 20px; top: 78px; width: 125px; height: 125px; }.pokemonSprite.back { left: 20px; bottom: 45px; width: 145px; height: 145px; }.battleStage::before { right: 3px; }.battleStage::after { left: -35px; }
   .partyGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.partyMember { height: 54px; }.fieldState { grid-template-columns: 1fr; }.setGrid { grid-template-columns: 1fr; }.actionGroup { grid-template-columns: 1fr; }.groupLabel { padding: 0; text-align: left; }.moveGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }.flagForm { grid-template-columns: 1fr; }.survey { grid-template-columns: 1fr; }.debug { overflow-x: auto; }
 }
+.researchNotice { grid-column: 1/-1; padding: 9px 11px; border: 1px solid #b9c8d8; border-radius: 4px; background: #eef4fa; font-size: 12px; }
+.researchNotice p { margin: 0 0 6px; }.researchNotice .note { margin: 6px 0 0; text-align: left; }.researchNotice button { margin-left: 6px; padding: 3px 8px; font-size: 11px; }
+.researchStatus { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 12px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; background: #f6f6f6; font-size: 12px; }
+.researchStatus .ok { color: #2f7a33; }.researchStatus .warn { color: #8a6200; }.researchStatus .bad { color: #a33a2e; }.researchStatus .muted { color: #777; }
+.researchStatus button { margin-left: 6px; padding: 3px 8px; font-size: 11px; }

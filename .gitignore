@@ -32,3 +32,7 @@ artifacts/coverage/*.jsonl
 baserom*
 third_party/pokemon-showdown/logs/
 /third_party/
+# Local credentials (see web-playtest/.env.example); never commit these.
+.env
+.env.*
+!.env.example

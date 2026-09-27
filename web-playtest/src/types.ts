@@ -271,6 +271,23 @@ export interface TurnFlag {
 
 export interface BattleFeedback {strength?: string; irrational?: boolean; cheating?: boolean; comment?: string}
 
+/**
+ * Upload bookkeeping for one archived battle. It lives only in this browser's
+ * archive: it is stripped before upload and before JSON/JSONL export.
+ */
+export interface RemoteSubmission {
+  /** Generated once per battle and reused by every retry, so uploads are idempotent. */
+  submission_id: string
+  /** Bumped whenever the finished log changes locally (a flag or feedback added later). */
+  revision: number
+  status: 'pending' | 'uploaded' | 'failed'
+  attempts: number
+  uploaded_revision?: number
+  uploaded_at?: string
+  next_attempt_at?: string
+  last_error?: string
+}
+
 export interface ResearchLog {
   metadata: Record<string, unknown>
   ai_decisions: AIDecision[]
@@ -279,4 +296,6 @@ export interface ResearchLog {
   public_log: string[]
   flags: TurnFlag[]
   feedback?: BattleFeedback
+  /** Local archive only; absent on archives written before remote collection existed. */
+  remote_submission?: RemoteSubmission
 }

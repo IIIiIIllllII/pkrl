@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {TEAM_FIXTURES} from '../src/data/teams'
-import {battleName, ITEM_KO, MOVE_KO, POKEMON_KO} from '../src/i18n'
+import {battleName, ITEM_KO, MOVE_KO, POKEMON_KO, UI} from '../src/i18n'
 
 describe('Korean presentation localization', () => {
   it('uses official Korean names for every fixture Pokémon and move', () => {
@@ -18,5 +18,12 @@ describe('Korean presentation localization', () => {
     expect(battleName('Hidden Power Grass 70', 'ko')).toBe('잠재파워 (풀) 70')
     expect(battleName('Switch to Metagross', 'ko')).toBe('메타그로스로 교체')
     expect(battleName('Thunderbolt', 'en')).toBe('Thunderbolt')
+  })
+
+  it('translates every interface string, including the research-upload notice', () => {
+    expect(Object.keys(UI.ko).sort()).toEqual(Object.keys(UI.en).sort())
+    for (const key of ['remoteNotice', 'submitForResearch', 'uploadPending', 'uploaded', 'savedLocally', 'retryUploads'] as const) {
+      expect(UI.ko[key]).toBeTruthy(); expect(UI.ko[key]).not.toBe(UI.en[key])
+    }
   })
 })

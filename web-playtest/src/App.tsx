@@ -4,11 +4,13 @@ import {POLICY_IDS} from './policy/assets'
 import {randomPolicy, randomSeed} from './policy/selection'
 import {battleName, boostLabel, categoryLabel, conditionLabel, debugLabel, effectLabel, FLAG_LABELS, itemName, label, statusLabel, STRENGTH_LABELS, teamLabel, UI, weatherLabel, type Locale} from './i18n'
 import {readableLine} from './battleLog'
-import {clearActive, copyJson, createResearchLog, downloadJson, downloadJsonl, finalizeLog, flagTurn, loadActive, loadArchive, saveActive, saveToArchive} from './research/logging'
-import type {BattleApiInput, BattleFeedback, BattleResponse, LutContribution, PublicPokemonState, PublicSideState, ResearchLog} from './types'
+import {clearActive, copyJson, createResearchLog, downloadJson, downloadJsonl, FEEDBACK_COMMENT_MAX, finalizeLog, FLAG_COMMENT_MAX, flagTurn, loadActive, loadArchive, researchPayload, saveActive} from './research/logging'
+import {archiveFinalLog, pendingUploadCount, remoteSubmissionEnabled, setRemoteSubmissionEnabled, uploadPending} from './research/remote'
+import type {BattleApiInput, BattleFeedback, BattleResponse, LutContribution, PublicPokemonState, PublicSideState, RemoteSubmission, ResearchLog} from './types'
 
 const FLAG_CATEGORIES = Object.keys(FLAG_LABELS)
-type Session = {input: BattleApiInput; response: BattleResponse; log: ResearchLog; blind: boolean; debug: boolean}
+/** `remote`/`localSaved` describe the finished battle's archive entry (kept here too in case the local save failed). */
+type Session = {input: BattleApiInput; response: BattleResponse; log: ResearchLog; blind: boolean; debug: boolean; remote?: RemoteSubmission; localSaved?: boolean}
 
 function spriteUrl(species: string, back = false): string {
   const id = species.toLowerCase().replace(/[^a-z0-9]+/g, '')
@@ -50,6 +52,24 @@ function SideConditions({side, locale}: {side: PublicSideState; locale: Locale})
   </b>)}</>
 }
 
+/** Where this battle's research data is: always local first, then the optional upload. */
+function ResearchStatus({locale, localSaved, remote, remoteEnabled, uploading, onRetry}: {
+  locale: Locale; localSaved: boolean; remote?: RemoteSubmission; remoteEnabled: boolean; uploading: boolean; onRetry: () => void
+}) {
+  const t = UI[locale]
+  const uploaded = remote?.status === 'uploaded' && remote.uploaded_revision === remote.revision
+  let line
+  if (!remote) line = <span className="muted">— {t.notSubmitted}</span>
+  else if (uploaded) line = <span className="ok">✓ {t.uploaded}</span>
+  else if (remote.status === 'failed') line = <span className="bad">✗ {t.uploadRejected}{remote.last_error ? ` (${remote.last_error})` : ''}</span>
+  else if (uploading && remoteEnabled) line = <span className="muted">… {t.uploading}</span>
+  else line = <span className="warn">⚠ {remoteEnabled ? t.uploadPending : t.uploadPaused} {remoteEnabled && <button onClick={onRetry}>{t.retryUploads}</button>}</span>
+  return <div className="researchStatus" role="status"><strong>{t.researchData}</strong>
+    {localSaved ? <span className="ok">✓ {t.savedLocally}</span> : <span className="bad">⚠ {t.notSavedLocally}</span>}
+    {line}
+  </div>
+}
+
 function largestContributions(contributions: LutContribution[] | null, count = 8): LutContribution[] {
   if (!contributions) return []
   return [...contributions].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight)).slice(0, count)
@@ -63,7 +83,38 @@ export default function App() {
   const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [flagOpen, setFlagOpen] = useState(false)
   const [flagCategory, setFlagCategory] = useState(FLAG_CATEGORIES[0]); const [flagComment, setFlagComment] = useState('')
   const [feedback, setFeedback] = useState<BattleFeedback>({}); const [archiveCount, setArchiveCount] = useState(() => loadArchive().length)
+  const [remoteEnabled, setRemoteEnabled] = useState(remoteSubmissionEnabled); const [uploading, setUploading] = useState(false)
+  const [uploadTick, setUploadTick] = useState(0)
   const t = UI[locale]
+  const pendingCount = useMemo(() => pendingUploadCount(), [uploadTick, archiveCount])
+  const battleId = session?.input.battle_id
+  const archivedRemote = useMemo(() => battleId ? loadArchive().find(item => item.metadata.battle_id === battleId)?.remote_submission : undefined, [battleId, session?.log, uploadTick])
+
+  /** Background upload pass; it never blocks play and failures stay pending locally. */
+  function runUploads(force = false, extra: ResearchLog[] = []) {
+    setUploading(true)
+    void uploadPending({force, extra}).then(() => {
+      for (const entry of extra) setSession(current => current && current.input.battle_id === entry.metadata.battle_id ? {...current, remote: entry.remote_submission} : current)
+    }).catch(() => { /* uploads are best-effort; state stays pending */ }).finally(() => { setUploading(false); setUploadTick(value => value + 1) })
+  }
+  useEffect(() => {
+    runUploads()
+    const retry = () => runUploads()
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [])
+  function toggleRemote(enabled: boolean) {
+    setRemoteSubmissionEnabled(enabled); setRemoteEnabled(enabled)
+    if (enabled) runUploads()
+  }
+  /** Save a finished log locally first, then queue its upload. */
+  function archiveFinished(base: Session, log: ResearchLog): Session {
+    const stored = archiveFinalLog(log, {remote: remoteEnabled, previous: base.remote})
+    if (!stored.saved) setError(`${t.archiveFull} (${stored.error})`)
+    setArchiveCount(loadArchive().length)
+    runUploads(false, stored.saved ? [] : [stored.entry])
+    return {...base, log, remote: stored.entry.remote_submission, localSaved: stored.saved}
+  }
   const visibleLog = useMemo(() => (session?.response.public_log || []).map(line => readableLine(line, locale)).filter(Boolean).slice(-24), [session, locale])
   useEffect(() => { localStorage.setItem('gen3-lut-locale', locale); document.documentElement.lang = locale }, [locale])
 
@@ -87,32 +138,28 @@ export default function App() {
     if (!session) return; setLoading(true); setError('')
     try {
       const input = {...session.input, human_choices: [...session.input.human_choices, choice]}; const response = await battleRequest(input)
-      let log = {...session.log, human_choices: input.human_choices, human_actions: response.human_actions, ai_decisions: response.ai_decisions, public_log: response.public_log}
-      if (response.terminal) {
-        log = finalizeLog(log, response)
-        const stored = saveToArchive(log)
-        if (!stored.saved) setError(`${t.archiveFull} (${stored.error})`)
-        setArchiveCount(loadArchive().length)
-      }
-      const next = {...session, input, response, log}; setSession(next); saveActive(next)
+      const log = {...session.log, human_choices: input.human_choices, human_actions: response.human_actions, ai_decisions: response.ai_decisions, public_log: response.public_log}
+      let next: Session = {...session, input, response, log}
+      if (response.terminal) next = archiveFinished(next, finalizeLog(log, response))
+      setSession(next); saveActive(next)
     } catch (problem) { setError(problem instanceof Error ? problem.message : String(problem)) }
     finally { setLoading(false) }
   }
   function submitFlag() {
     if (!session) return; const decision = session.response.ai_decisions.at(-1); if (!decision) return
     const log = flagTurn(session.log, decision.turn, decision.chosen_action.label, flagCategory, flagComment || undefined)
-    const next = {...session, log}; setSession(next); saveActive(next); if (session.response.terminal) saveToArchive(log)
+    const next = session.response.terminal ? archiveFinished(session, log) : {...session, log}
+    setSession(next); saveActive(next)
     setFlagOpen(false); setFlagComment('')
   }
   function submitFeedback() {
-    if (!session) return; const log = finalizeLog(session.log, session.response, feedback)
-    const stored = saveToArchive(log)
-    if (!stored.saved) setError(`${t.archiveFull} (${stored.error})`)
-    const next = {...session, log}; setSession(next); saveActive(next); setArchiveCount(loadArchive().length)
+    if (!session) return
+    const next = archiveFinished(session, finalizeLog(session.log, session.response, feedback))
+    setSession(next); saveActive(next)
   }
   function reset() { setSession(null); clearActive(); setFeedback({}); setFlagOpen(false) }
   function exportArchive(format: 'json' | 'jsonl') {
-    const battles = loadArchive()
+    const battles = loadArchive().map(researchPayload)
     if (format === 'jsonl') downloadJsonl('gen3-lut-playtest-session.jsonl', battles)
     else downloadJson('gen3-lut-playtest-session.json', {exported_at: new Date().toISOString(), battles})
   }
@@ -129,6 +176,12 @@ export default function App() {
       {blind ? <p className="note">{t.blindNote}</p>
         : <label>{t.checkpoint}<select value={policy} onChange={event => setPolicy(event.target.value)}>{POLICY_IDS.map(id => <option key={id}>{id}</option>)}</select></label>}
       <label className="check"><input type="checkbox" checked={debug} onChange={event => setDebug(event.target.checked)}/> {t.debugMode}</label>
+      <div className="researchNotice">
+        <p>{t.remoteNotice}</p>
+        <label className="check"><input type="checkbox" checked={remoteEnabled} onChange={event => toggleRemote(event.target.checked)}/> {t.submitForResearch}</label>
+        {!remoteEnabled && <p className="note">{t.remoteOffNote}</p>}
+        {pendingCount > 0 && <p className="note">{t.uploadsPending}: {pendingCount} <button disabled={uploading || !remoteEnabled} onClick={() => runUploads(true)}>{uploading ? t.uploading : t.retryUploads}</button></p>}
+      </div>
       <button className="primary" disabled={loading} onClick={startBattle}>{loading ? t.starting : t.startBattle}</button>
       {archiveCount > 0 && <><button onClick={() => exportArchive('json')}>{t.downloadArchive} ({archiveCount})</button><button onClick={() => exportArchive('jsonl')}>{t.downloadAllJsonl}</button></>}
       {error && <p className="error">{error}</p>}
@@ -181,7 +234,7 @@ export default function App() {
         {loading && <p className="working">{t.replaying}</p>}
         {error && <p className="error">{error}</p>}
         {lastDecision && <div className="flagArea"><button className="flag" onClick={() => setFlagOpen(value => !value)}>{t.wrongDecision}</button>
-          {flagOpen && <div className="flagForm"><label>{t.whatWrong}<select value={flagCategory} onChange={event => setFlagCategory(event.target.value)}>{FLAG_CATEGORIES.map(value => <option key={value} value={value}>{label(FLAG_LABELS[value], locale)}</option>)}</select></label><label>{t.optionalNote}<input value={flagComment} onChange={event => setFlagComment(event.target.value)} placeholder={t.shortNote}/></label><button onClick={submitFlag}>{t.saveFlag}</button></div>}</div>}
+          {flagOpen && <div className="flagForm"><label>{t.whatWrong}<select value={flagCategory} onChange={event => setFlagCategory(event.target.value)}>{FLAG_CATEGORIES.map(value => <option key={value} value={value}>{label(FLAG_LABELS[value], locale)}</option>)}</select></label><label>{t.optionalNote}<input value={flagComment} maxLength={FLAG_COMMENT_MAX} onChange={event => setFlagComment(event.target.value)} placeholder={t.shortNote}/></label><button onClick={submitFlag}>{t.saveFlag}</button></div>}</div>}
       </section>
       <aside className="panel log"><h2>{t.battleLog}</h2>{visibleLog.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}</aside>
     </div>
@@ -225,7 +278,9 @@ export default function App() {
       <div className="survey"><label>{t.strengthQuestion}<select value={feedback.strength || ''} onChange={event => setFeedback({...feedback, strength: event.target.value})}><option value="">{t.choose}</option>{Object.keys(STRENGTH_LABELS).map(value => <option key={value} value={value}>{label(STRENGTH_LABELS[value], locale)}</option>)}</select></label>
         <label>{t.irrationalQuestion}<select value={feedback.irrational == null ? '' : String(feedback.irrational)} onChange={event => setFeedback({...feedback, irrational: event.target.value === 'true'})}><option value="">{t.choose}</option><option value="true">{t.yes}</option><option value="false">{t.no}</option></select></label>
         <label>{t.cheatingQuestion}<select value={feedback.cheating == null ? '' : String(feedback.cheating)} onChange={event => setFeedback({...feedback, cheating: event.target.value === 'true'})}><option value="">{t.choose}</option><option value="true">{t.yes}</option><option value="false">{t.no}</option></select></label>
-        <label>{t.optionalComment}<textarea value={feedback.comment || ''} onChange={event => setFeedback({...feedback, comment: event.target.value})}/></label><button className="primary" onClick={submitFeedback}>{t.saveFeedback}</button></div>
+        <label>{t.optionalComment}<textarea value={feedback.comment || ''} maxLength={FEEDBACK_COMMENT_MAX} onChange={event => setFeedback({...feedback, comment: event.target.value})}/></label><button className="primary" onClick={submitFeedback}>{t.saveFeedback}</button></div>
+      <ResearchStatus locale={locale} localSaved={Boolean(archivedRemote) || session.localSaved !== false} remote={archivedRemote ?? session.remote}
+        remoteEnabled={remoteEnabled} uploading={uploading} onRetry={() => runUploads(true)}/>
       <div className="exports"><button onClick={() => downloadJson(`playtest-${response.battle_id}.json`, log)}>{t.downloadLog}</button><button onClick={() => copyJson(log)}>{t.copyJson}</button><button onClick={() => exportArchive('json')}>{t.downloadAll}</button><button onClick={() => exportArchive('jsonl')}>{t.downloadAllJsonl}</button></div>
     </section>}
   </main>
