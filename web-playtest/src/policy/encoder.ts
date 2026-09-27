@@ -1,5 +1,5 @@
 import type {BattleRequest, MoveRequest} from '../types'
-import {FEATURE_INDEX, FEATURE_NAMES, FEATURE_VALUES} from './schema'
+import {FEATURE_NAMES, FEATURE_VALUES} from './schema'
 import {classifyMove, resolveMoveSemantics} from './moveSemantics'
 
 const STATUS_IDS: Record<string, number> = {'': 0, brn: 1, par: 2, psn: 3, tox: 3, slp: 4, frz: 5}
@@ -55,8 +55,12 @@ export function encodeRequest(request: BattleRequest): {features: number[][]; ma
     const row = features[slot]
     row[0] = slot; row[1] = classifyRole(move); row[2] = FEATURE_VALUES.move_type.indexOf(type)
     if (row[2] < 0) row[2] = 17
+    // Mirrors gen3_damage_class in the Python reference: status moves keep their
+    // real (zero) power, damaging moves are classed by type, and an unknown type
+    // falls back on power exactly as the reference's ValueError branch does.
     const moveClass = classifyMove(move)
-    row[3] = moveClass === 'status' ? 2 : PHYSICAL.has(type) ? 0 : SPECIAL.has(type) ? 1 : 0
+    const classPower = moveClass === 'status' ? power : Math.max(power, 1)
+    row[3] = classPower <= 0 ? 2 : PHYSICAL.has(type) ? 0 : SPECIAL.has(type) ? 1 : power <= 0 ? 2 : 0
     row[4] = powerBucket(power); row[5] = accuracyBucket(move.accuracy)
     row[6] = (move.priority || 0) < 0 ? 0 : (move.priority || 0) > 0 ? 2 : 1
     row[7] = Number((own.types || []).some(value => value.toLowerCase() === type))

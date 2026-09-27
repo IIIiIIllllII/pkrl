@@ -9,7 +9,7 @@ from gen3rl.policy.lut import AdditiveLUTPolicy
 from gen3rl.runner import evaluate_suites
 
 def test_hidden_fields_cannot_change_python_features_or_masks():
-    fixture=json.load(open("web-playtest/public/v1-1-parity-fixtures.json"))["fixtures"][0]
+    fixture=json.load(open("web-playtest/tests/fixtures/v1-1-parity-fixtures.json"))["fixtures"][0]
     request=fixture["request"]; expected=encode_request(request)
     changed=copy.deepcopy(request)
     secrets={"unrevealed_moves":["Psychic"],"bench":["Mewtwo"],"item":"Choice Band","ability":"Shadow Tag",

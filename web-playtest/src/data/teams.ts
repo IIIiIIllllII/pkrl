@@ -1,7 +1,7 @@
 export interface TeamFixture {
   id: string
   name: string
-  category: 'balanced' | 'offense' | 'stall-status' | 'setup-heavy' | 'immunity-trap' | 'rom-like'
+  category: 'balanced' | 'bulky-offense' | 'offense' | 'stall-status' | 'setup-heavy' | 'immunity-trap' | 'rom-like'
   description: string
   team: Array<Record<string, unknown>>
 }
@@ -32,6 +32,18 @@ export const TEAM_FIXTURES: TeamFixture[] = [
     ],
   },
   {
+    id: 'adv-bulky-offense', name: 'ADV Bulky Offense', category: 'bulky-offense',
+    description: 'Bulky attackers that can take a hit, then threaten back.',
+    team: [
+      {species: 'Suicune', level: 50, ability: 'Pressure', item: 'Leftovers', nature: 'Bold', moves: ['Calm Mind', 'Surf', 'Ice Beam', 'Roar']},
+      {species: 'Metagross', level: 50, ability: 'Clear Body', item: 'Leftovers', nature: 'Adamant', moves: ['Meteor Mash', 'Earthquake', 'Rock Slide', 'Explosion']},
+      {species: 'Salamence', level: 50, ability: 'Intimidate', item: 'Leftovers', nature: 'Naughty', moves: ['Dragon Claw', 'Earthquake', 'Fire Blast', 'Rock Slide']},
+      {species: 'Snorlax', level: 50, ability: 'Thick Fat', item: 'Leftovers', nature: 'Adamant', moves: ['Body Slam', 'Shadow Ball', 'Earthquake', 'Rest']},
+      {species: 'Magneton', level: 50, ability: 'Magnet Pull', item: 'Leftovers', nature: 'Modest', moves: ['Thunderbolt', 'Hidden Power Grass', 'Thunder Wave', 'Protect']},
+      {species: 'Celebi', level: 50, ability: 'Natural Cure', item: 'Leftovers', nature: 'Bold', moves: ['Psychic', 'Leech Seed', 'Recover', 'Baton Pass']},
+    ],
+  },
+  {
     id: 'status-stall', name: 'Status & Stall', category: 'stall-status',
     description: 'Recovery, poison, phazing, and immunities stress status decisions.',
     team: [
@@ -53,6 +65,18 @@ export const TEAM_FIXTURES: TeamFixture[] = [
       {species: 'Gengar', level: 50, ability: 'Levitate', item: 'Leftovers', nature: 'Timid', moves: ['Thunderbolt', 'Ice Punch', 'Hypnosis', 'Explosion']},
       {species: 'Shedinja', level: 50, ability: 'Wonder Guard', item: 'Lum Berry', nature: 'Adamant', moves: ['Shadow Ball', 'Silver Wind', 'Protect', 'Toxic']},
       {species: 'Breloom', level: 50, ability: 'Effect Spore', item: 'Leftovers', nature: 'Jolly', moves: ['Spore', 'Focus Punch', 'Mach Punch', 'Leech Seed']},
+    ],
+  },
+  {
+    id: 'setup-heavy', name: 'Setup Sweepers', category: 'setup-heavy',
+    description: 'Six boosting win conditions; use it to test whether the AI punishes free setup.',
+    team: [
+      {species: 'Salamence', level: 50, ability: 'Intimidate', item: 'Leftovers', nature: 'Adamant', moves: ['Dragon Dance', 'Dragon Claw', 'Earthquake', 'Rock Slide']},
+      {species: 'Gyarados', level: 50, ability: 'Intimidate', item: 'Leftovers', nature: 'Adamant', moves: ['Dragon Dance', 'Hidden Power Flying', 'Earthquake', 'Taunt']},
+      {species: 'Tyranitar', level: 50, ability: 'Sand Stream', item: 'Leftovers', nature: 'Adamant', moves: ['Dragon Dance', 'Rock Slide', 'Earthquake', 'Hidden Power Bug']},
+      {species: 'Suicune', level: 50, ability: 'Pressure', item: 'Leftovers', nature: 'Bold', moves: ['Calm Mind', 'Surf', 'Ice Beam', 'Rest']},
+      {species: 'Snorlax', level: 50, ability: 'Thick Fat', item: 'Leftovers', nature: 'Careful', moves: ['Curse', 'Body Slam', 'Earthquake', 'Rest']},
+      {species: 'Jolteon', level: 50, ability: 'Volt Absorb', item: 'Leftovers', nature: 'Timid', moves: ['Agility', 'Thunderbolt', 'Hidden Power Grass', 'Baton Pass']},
     ],
   },
   {

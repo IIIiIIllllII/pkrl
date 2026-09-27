@@ -100,7 +100,7 @@ def main():
         else:
             for m in req["active"][0]["moves"]: m["disabled" if mode=="disabled" else "pp"]=True if mode=="disabled" else 0
         append(mode,req)
-    output=ROOT/"web-playtest/public/v1-1-parity-fixtures.json"
+    output=ROOT/"web-playtest/tests/fixtures/v1-1-parity-fixtures.json"
     output.write_text('{"schema_version":'+json.dumps(SCHEMA_VERSION)+',"quantization_scale":'+str(scale)+',"policy":'+json.dumps(asset,separators=(",",":"))+',"fixtures":[\n'+",\n".join(json.dumps(f,separators=(",",":")) for f in fixtures)+"]}\n")
     print(output)
 

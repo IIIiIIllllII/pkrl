@@ -1,0 +1,78 @@
+{
+  "battle_concurrency": 1,
+  "benchmark_decisions": 32768,
+  "benchmark_min_decisions_per_second": 2800,
+  "checkpoint_decisions": [
+    50000,
+    100000,
+    250000,
+    500000,
+    1000000,
+    2000000,
+    5000000,
+    10000000,
+    20000000,
+    50000000,
+    100000000
+  ],
+  "device": "cpu",
+  "early_stop": {
+    "evaluation_collapse_win_rate": 0.05,
+    "max_consecutive_empty_battles": 10,
+    "minimum_decisions_per_second": 100
+  },
+  "feature_schema": "gen3-lut-v1.1",
+  "format": "gen3customgame",
+  "learning_rate": 0.0003,
+  "max_decisions": 100000000,
+  "milestone_evaluation_decisions": [
+    1000000,
+    2000000,
+    5000000,
+    10000000,
+    20000000,
+    50000000,
+    100000000
+  ],
+  "milestone_evaluation_games": 500,
+  "milestone_evaluation_seed": 10000,
+  "minimum_available_ram_gib": 8,
+  "opponent_mixture": {
+    "damage": 0.5,
+    "historical": 0.3,
+    "random": 0.2
+  },
+  "ppo": {
+    "clip": 0.2,
+    "entropy": 0.01,
+    "epochs": 4,
+    "gae_lambda": 0.95,
+    "gamma": 0.99,
+    "gradient_clip": 0.5,
+    "minibatch": 1024,
+    "value": 0.5
+  },
+  "preflight_minutes": 0.05,
+  "preflight_states": 500,
+  "quick_evaluation_games": 50,
+  "quick_evaluation_interval": 1000000,
+  "quick_evaluation_seed": 10000,
+  "reward": {
+    "faint": 0.0,
+    "hp_delta": 0.0,
+    "terminal": true
+  },
+  "rollout_size": 4096,
+  "safety_checkpoint_interval": 1000000,
+  "safety_checkpoint_keep": 3,
+  "seed": 208011,
+  "team_distribution": {
+    "cartridge": 0.5,
+    "generalization": 0.2,
+    "synthetic": 0.3
+  },
+  "torch_interop_threads": 1,
+  "torch_threads": 1,
+  "worker_timeout": 90,
+  "workers": 24
+}

@@ -1,0 +1,40 @@
+{
+  "python_seed": 208011,
+  "numpy_seed": 208011,
+  "torch_seed": 208011,
+  "showdown_seed": [
+    2399,
+    11677,
+    34505,
+    18022
+  ],
+  "config_hash": "a6fc0ca8144751056ffe57e7a2451084cf30a87f26c092bfcec919ad00e89233",
+  "feature_schema_version": "gen3-lut-v1.1",
+  "semantics_revision": "2026-09-27-reboot",
+  "python_version": "3.12.13 (main, Aug  7 2026, 02:25:39) [Clang 22.1.3 ]",
+  "dependencies": {
+    "torch": "2.14.0",
+    "numpy": "2.5.3",
+    "PyYAML": "6.0.3"
+  },
+  "torch_build": "2.14.0+cu130",
+  "logical_cpus": 64,
+  "lock_sha256": {
+    "uv.lock": "86afee69564f5edc79f33fec51403af612d37fb363cb83b5c2e24df85c97eb89",
+    "web-playtest/package-lock.json": "679b77a23b02df1c7a3642c67dac3394407e0c153c4ece4d9e9c9441674a3af2"
+  },
+  "node_version": "v22.23.2",
+  "workers": 24,
+  "device": "cpu",
+  "torch_threads": 1,
+  "torch_interop_threads": 1,
+  "thread_environment": {
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1"
+  },
+  "git_dirty": false,
+  "pokemon_showdown_commit": "2ddfa0476f8207e12e204b1c69f7c7683b17633c",
+  "pokeemerald_commit": "5eff78649e7170a877b961ef0b3da13b81a16038",
+  "project_commit": "3db0a3737f956665f81fffad466c8549e3b0b83e"
+}

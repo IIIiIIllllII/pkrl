@@ -24,9 +24,6 @@ export interface MoveRequest {
   boosts?: Record<string, number>
   self?: {boosts?: Record<string, number>}
   effectivenessBucket?: number
-  legacyEffectivenessBucket?: number
-  legacyType?: string
-  legacyBasePower?: number
   moveClass?: 'normal-damage' | 'fixed-damage' | 'status'
   applicable?: boolean
   fixedDamage?: number | string
@@ -48,18 +45,79 @@ export interface PublicTarget {species: string; hpBucket: number; status: string
 export interface PublicState {target: PublicTarget | null; weather: string; turn: number}
 export interface LegalAction {index: number; choice: string; label: string; kind: 'move' | 'switch'}
 
+export interface PolicyCheckpointRef {
+  run_id: string
+  run_path?: string
+  file: string
+  sha256: string
+  milestone_decisions: number
+  step?: number
+}
+
+export interface PolicyQuantization {
+  mode: string
+  scale: number
+  bytes: number
+  clip?: [number, number]
+  accumulator?: string
+  tables: Record<string, number[] | number[][]>
+}
+
 export interface PolicyAsset {
   asset_version: number
   policy_id: string
   schema_version: string
+  semantics_revision?: string
+  generation?: string
+  contaminated?: boolean
+  checkpoint?: PolicyCheckpointRef
   checkpoint_decisions: number
+  training?: Record<string, unknown>
+  source?: Record<string, unknown>
   simulator: {format: string; pokemon_showdown_commit: string}
+  evaluation?: Record<string, unknown> | null
   inference: string
   switch_logits: string
   parameter_count: number
   feature_sizes: Record<string, number>
   pair_specs: [string, string][]
+  table_offsets?: Record<string, {offset: number; shape: number[]}>
+  quantization?: PolicyQuantization
   tables: Record<string, number[] | number[][]>
+}
+
+/** Public provenance shown in the UI and copied into every research log. */
+export interface PolicyProvenance {
+  policy_id: string
+  schema_version: string
+  semantics_revision?: string
+  generation?: string
+  checkpoint_decisions: number
+  milestone_decisions?: number
+  checkpoint_sha256?: string
+  parameter_count: number
+  quantization_mode?: string
+  quantization_scale?: number
+  project_commit?: string
+  pokemon_showdown_commit: string
+  evaluation?: Record<string, unknown> | null
+}
+
+export interface LutContribution {
+  term: string
+  category: string
+  value_id: number
+  global_id: number
+  weight: number
+}
+
+export interface ScoreRanking {
+  top1_index: number
+  top1_score: number
+  top2_index: number | null
+  top2_score: number | null
+  margin: number | null
+  legal_count: number
 }
 
 export interface ActionDiagnostic {
@@ -68,23 +126,51 @@ export interface ActionDiagnostic {
   kind: 'move' | 'switch'
   legal: boolean
   score: number | null
+  quantized_score: number | null
   feature_ids: number[] | null
   feature_categories: Record<string, string> | null
+  activated_feature_ids: number[] | null
+  contributions: LutContribution[] | null
   move_role: string | null
+  move_class: 'normal-damage' | 'fixed-damage' | 'status' | null
+  applicable: boolean | null
   effectiveness: string | null
 }
 
+/**
+ * Whether the AI had an answer available, so a successful human setup sweep can
+ * be attributed to the team rather than automatically to the policy. This is
+ * bookkeeping over the AI's own side only; it is never fed to the policy and is
+ * withheld until the battle is over.
+ */
+export interface AnswerAvailability {
+  classification: 'answer_used' | 'active_answer_unused' | 'bench_answer_unused' | 'no_answer_existed'
+  active_answers: Array<{index: number; label: string; reason: string; effectiveness: string}>
+  bench_answers: Array<{index: number; species: string; reason: string; effectiveness: string}>
+  chosen_was_answer: boolean
+}
+
 export interface AIDecision {
+  battle_id: string
+  policy_id: string
   turn: number
   observation: Record<string, unknown>
+  legal_actions: LegalAction[]
   legal_action_mask: boolean[]
   candidates: ActionDiagnostic[]
   chosen_action: ActionDiagnostic
+  resolved_defender_types: string[]
   top1_score: number
   top2_score: number | null
+  top2_index: number | null
   margin: number | null
+  quantized_top1_score: number | null
+  quantized_selected_action: number | null
   resulting_visible_events: string[]
+  answer_availability?: AnswerAvailability
 }
+
+export interface HumanAction {turn: number; choice: string; label: string; kind: 'move' | 'switch'}
 
 export interface BattleResponse {
   battle_id: string
@@ -92,11 +178,13 @@ export interface BattleResponse {
   simulator: string
   feature_schema: string
   policy_id: string
+  policy_provenance: PolicyProvenance
   request: BattleRequest | null
   legal_actions: LegalAction[]
   public_log: string[]
   turn: number
   ai_decisions: AIDecision[]
+  human_actions: HumanAction[]
   terminal: boolean
   winner: string | null
   error?: string
@@ -114,6 +202,7 @@ export interface BattleApiInput {
 export interface TurnFlag {
   battle_id: string
   turn: number
+  policy_id: string
   chosen_ai_action: string
   category?: string
   comment?: string
@@ -121,10 +210,13 @@ export interface TurnFlag {
 }
 
 export interface BattleFeedback {strength?: string; irrational?: boolean; cheating?: boolean; comment?: string}
+
 export interface ResearchLog {
   metadata: Record<string, unknown>
   ai_decisions: AIDecision[]
+  human_actions: HumanAction[]
   human_choices: string[]
+  public_log: string[]
   flags: TurnFlag[]
   feedback?: BattleFeedback
 }

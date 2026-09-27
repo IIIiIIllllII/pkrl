@@ -1,0 +1,89 @@
+{
+  "schema_version": "gen3-lut-v1.1",
+  "semantics_revision": "2026-09-27-reboot",
+  "generation": "clean-v1.1",
+  "run_id": "20260926-160543-1c6977",
+  "run_summary": {
+    "decisions": 100000137,
+    "battles": 15444467,
+    "updates": 23525,
+    "illegal_actions": 0,
+    "interrupted": false,
+    "workers": 24,
+    "device": "cpu"
+  },
+  "policies": [
+    {
+      "policy_id": "v1.1-20m",
+      "checkpoint_decisions": 20002836,
+      "milestone_decisions": 20000000,
+      "checkpoint_sha256": "8697e226a261c4b0aa0b1719f86e2efade8287a15795cba1dbb130f1db33a636",
+      "parameter_count": 349,
+      "quantization_scale": 26.283438002951257,
+      "project_commit": "3db0a3737f956665f81fffad466c8549e3b0b83e",
+      "evaluation": {
+        "vs_random": {
+          "games": 500,
+          "win_rate": 0.786,
+          "illegal_actions": 0,
+          "mean_top1_top2_margin": 2.984778869230417
+        },
+        "vs_damage": {
+          "games": 500,
+          "win_rate": 0.616,
+          "illegal_actions": 0,
+          "mean_top1_top2_margin": 3.0088894945595945
+        }
+      }
+    },
+    {
+      "policy_id": "v1.1-50m",
+      "checkpoint_decisions": 50003950,
+      "milestone_decisions": 50000000,
+      "checkpoint_sha256": "1a4b2d94c12dbb708698d23fcd02bcbe4a838d46edc99544dde5a62e6fa7a0fb",
+      "parameter_count": 349,
+      "quantization_scale": 14.496103650685763,
+      "project_commit": "3db0a3737f956665f81fffad466c8549e3b0b83e",
+      "evaluation": {
+        "vs_random": {
+          "games": 500,
+          "win_rate": 0.782,
+          "illegal_actions": 0,
+          "mean_top1_top2_margin": 4.205354408999297
+        },
+        "vs_damage": {
+          "games": 500,
+          "win_rate": 0.622,
+          "illegal_actions": 0,
+          "mean_top1_top2_margin": 4.042100932189795
+        }
+      }
+    },
+    {
+      "policy_id": "v1.1-100m",
+      "checkpoint_decisions": 100000137,
+      "milestone_decisions": 100000000,
+      "checkpoint_sha256": "450c15c548effe281dd0bfdd6d85b8c2c52bee59091b56859c13161b82e58aa5",
+      "parameter_count": 349,
+      "quantization_scale": 10.796490652021548,
+      "project_commit": "3db0a3737f956665f81fffad466c8549e3b0b83e",
+      "evaluation": {
+        "vs_random": {
+          "games": 500,
+          "win_rate": 0.786,
+          "illegal_actions": 0,
+          "mean_top1_top2_margin": 5.363936526238352
+        },
+        "vs_damage": {
+          "games": 500,
+          "win_rate": 0.638,
+          "illegal_actions": 0,
+          "mean_top1_top2_margin": 4.7480958328362535
+        }
+      }
+    }
+  ],
+  "excluded_contaminated_generations": [
+    "gen3-lut-v1"
+  ]
+}

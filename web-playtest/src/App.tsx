@@ -1,17 +1,13 @@
 import {useEffect, useMemo, useState, type CSSProperties} from 'react'
 import {TEAM_FIXTURES} from './data/teams'
 import {POLICY_IDS} from './policy/assets'
+import {randomPolicy, randomSeed} from './policy/selection'
 import {battleName, categoryLabel, conditionLabel, debugLabel, FLAG_LABELS, itemName, label, statusLabel, STRENGTH_LABELS, teamLabel, UI, type Locale} from './i18n'
-import {clearActive, copyJson, createResearchLog, downloadJson, finalizeLog, flagTurn, loadActive, loadArchive, saveActive, saveToArchive} from './research/logging'
-import type {BattleApiInput, BattleFeedback, BattleResponse, ResearchLog} from './types'
+import {clearActive, copyJson, createResearchLog, downloadJson, downloadJsonl, finalizeLog, flagTurn, loadActive, loadArchive, saveActive, saveToArchive} from './research/logging'
+import type {BattleApiInput, BattleFeedback, BattleResponse, LutContribution, ResearchLog} from './types'
 
 const FLAG_CATEGORIES = Object.keys(FLAG_LABELS)
 type Session = {input: BattleApiInput; response: BattleResponse; log: ResearchLog; blind: boolean; debug: boolean}
-
-function randomSeed(): [number, number, number, number] {
-  const values = new Uint16Array(4); crypto.getRandomValues(values); return [...values] as [number, number, number, number]
-}
-function randomPolicy(): string { const bytes = new Uint8Array(1); crypto.getRandomValues(bytes); return POLICY_IDS[bytes[0] % POLICY_IDS.length] }
 
 function spriteUrl(species: string, back = false): string {
   const id = species.toLowerCase().replace(/[^a-z0-9]+/g, '')
@@ -48,10 +44,15 @@ function readableLine(line: string, locale: Locale): string {
   return ''
 }
 
+function largestContributions(contributions: LutContribution[] | null, count = 8): LutContribution[] {
+  if (!contributions) return []
+  return [...contributions].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight)).slice(0, count)
+}
+
 export default function App() {
   const [locale, setLocale] = useState<Locale>(() => localStorage.getItem('gen3-lut-locale') === 'ko' ? 'ko' : 'en')
   const [humanTeam, setHumanTeam] = useState('adv-balanced'); const [aiTeam, setAiTeam] = useState('adv-balanced')
-  const [blind, setBlind] = useState(true); const [policy, setPolicy] = useState<string>('v1-100m'); const [debug, setDebug] = useState(false)
+  const [blind, setBlind] = useState(true); const [policy, setPolicy] = useState<string>('v1.1-100m'); const [debug, setDebug] = useState(false)
   const [session, setSession] = useState<Session | null>(() => loadActive<Session>())
   const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [flagOpen, setFlagOpen] = useState(false)
   const [flagCategory, setFlagCategory] = useState(FLAG_CATEGORIES[0]); const [flagComment, setFlagComment] = useState('')
@@ -70,7 +71,8 @@ export default function App() {
     try {
       const selectedPolicy = blind ? randomPolicy() : policy
       const input: BattleApiInput = {battle_id: crypto.randomUUID(), seed: randomSeed(), policy_id: selectedPolicy, human_team_id: humanTeam, ai_team_id: aiTeam, human_choices: []}
-      const response = await battleRequest(input); const next = {input, response, log: createResearchLog(response, humanTeam, aiTeam, []), blind, debug}
+      const response = await battleRequest(input)
+      const next = {input, response, log: createResearchLog(response, humanTeam, aiTeam, [], blind), blind, debug}
       setSession(next); saveActive(next)
     } catch (problem) { setError(problem instanceof Error ? problem.message : String(problem)) }
     finally { setLoading(false) }
@@ -79,8 +81,13 @@ export default function App() {
     if (!session) return; setLoading(true); setError('')
     try {
       const input = {...session.input, human_choices: [...session.input.human_choices, choice]}; const response = await battleRequest(input)
-      let log = {...session.log, human_choices: input.human_choices, ai_decisions: response.ai_decisions}
-      if (response.terminal) { log = finalizeLog(log, response); saveToArchive(log); setArchiveCount(loadArchive().length) }
+      let log = {...session.log, human_choices: input.human_choices, human_actions: response.human_actions, ai_decisions: response.ai_decisions, public_log: response.public_log}
+      if (response.terminal) {
+        log = finalizeLog(log, response)
+        const stored = saveToArchive(log)
+        if (!stored.saved) setError(`${t.archiveFull} (${stored.error})`)
+        setArchiveCount(loadArchive().length)
+      }
       const next = {...session, input, response, log}; setSession(next); saveActive(next)
     } catch (problem) { setError(problem instanceof Error ? problem.message : String(problem)) }
     finally { setLoading(false) }
@@ -92,10 +99,17 @@ export default function App() {
     setFlagOpen(false); setFlagComment('')
   }
   function submitFeedback() {
-    if (!session) return; const log = finalizeLog(session.log, session.response, feedback); saveToArchive(log)
+    if (!session) return; const log = finalizeLog(session.log, session.response, feedback)
+    const stored = saveToArchive(log)
+    if (!stored.saved) setError(`${t.archiveFull} (${stored.error})`)
     const next = {...session, log}; setSession(next); saveActive(next); setArchiveCount(loadArchive().length)
   }
   function reset() { setSession(null); clearActive(); setFeedback({}); setFlagOpen(false) }
+  function exportArchive(format: 'json' | 'jsonl') {
+    const battles = loadArchive()
+    if (format === 'jsonl') downloadJsonl('gen3-lut-playtest-session.jsonl', battles)
+    else downloadJson('gen3-lut-playtest-session.json', {exported_at: new Date().toISOString(), battles})
+  }
 
   if (!session) return <main className="shell">
     {appChrome}
@@ -106,18 +120,21 @@ export default function App() {
       <label>{t.yourTeam}<select value={humanTeam} onChange={event => setHumanTeam(event.target.value)}>{TEAM_FIXTURES.map(team => <option key={team.id} value={team.id}>{teamLabel(team.id, team.name, locale)} · {categoryLabel(team.category, locale)}</option>)}</select></label>
       <label>{t.aiTeam}<select value={aiTeam} onChange={event => setAiTeam(event.target.value)}>{TEAM_FIXTURES.map(team => <option key={team.id} value={team.id}>{teamLabel(team.id, team.name, locale)} · {categoryLabel(team.category, locale)}</option>)}</select></label>
       <label className="check"><input type="checkbox" checked={blind} onChange={event => setBlind(event.target.checked)}/> {t.blindTest}</label>
-      {!blind && <label>{t.checkpoint}<select value={policy} onChange={event => setPolicy(event.target.value)}>{POLICY_IDS.map(id => <option key={id}>{id}</option>)}</select></label>}
+      {blind ? <p className="note">{t.blindNote}</p>
+        : <label>{t.checkpoint}<select value={policy} onChange={event => setPolicy(event.target.value)}>{POLICY_IDS.map(id => <option key={id}>{id}</option>)}</select></label>}
       <label className="check"><input type="checkbox" checked={debug} onChange={event => setDebug(event.target.checked)}/> {t.debugMode}</label>
       <button className="primary" disabled={loading} onClick={startBattle}>{loading ? t.starting : t.startBattle}</button>
-      {archiveCount > 0 && <button onClick={() => downloadJson('gen3-lut-playtest-session.json', {exported_at: new Date().toISOString(), battles: loadArchive()})}>{t.downloadArchive} ({archiveCount})</button>}
+      {archiveCount > 0 && <><button onClick={() => exportArchive('json')}>{t.downloadArchive} ({archiveCount})</button><button onClick={() => exportArchive('jsonl')}>{t.downloadAllJsonl}</button></>}
       {error && <p className="error">{error}</p>}
       </section>
-      <p className="note">{t.simulator}: Pokémon Showdown ({t.pinned}) 2ddfa047 · {t.format}: gen3customgame · {t.schema}: gen3-lut-v1 · {t.legacyWarning}</p>
+      <p className="note">{t.simulator}: Pokémon Showdown ({t.pinned}) 2ddfa047 · {t.format}: gen3customgame · {t.schema}: gen3-lut-v1.1 · {t.cleanOnly}</p>
     </section>
   </main>
 
   const {response, log} = session; const own = response.request?.side?.pokemon.find(mon => mon.active); const target = response.request?.public?.target
   const lastDecision = response.ai_decisions.at(-1)
+  const revealPolicy = !session.blind || response.terminal
+  const provenance = response.policy_provenance
   const ownName = String(own?.details || own?.ident || t.unknown).split(',')[0].replace(/^p\d: /, '')
   const ownHp = hpPercent(own?.condition); const targetHp = target ? [0, 25, 50, 75, 100][target.hpBucket] : 0
   const moves = response.legal_actions.filter(action => action.kind === 'move'); const switches = response.legal_actions.filter(action => action.kind === 'switch')
@@ -157,13 +174,40 @@ export default function App() {
         <ul>{(mon.moves || []).map(move => <li key={move}>{battleName(move, locale)}</li>)}</ul>
       </article>
     })}</div></section>
-    {session.debug && <section className="panel debug"><h2>{t.developerView}</h2><div className="debugMeta"><code>{t.policy} {response.policy_id}</code><code>{t.seed} {response.seed.join(',')}</code><code>{t.margin} {lastDecision?.margin?.toFixed(4) ?? '—'}</code><code>{t.mask} {lastDecision?.legal_action_mask.map(Number).join('') || '—'}</code></div>{lastDecision && <table><thead><tr><th>{t.action}</th><th>{t.legal}</th><th>{t.score}</th><th>{t.role}</th><th>{t.effect}</th><th>{t.featureIds}</th></tr></thead><tbody>{lastDecision.candidates.map(action => <tr className={action.index === lastDecision.chosen_action.index ? 'chosen' : ''} key={action.index}><td>{battleName(action.label, locale)}</td><td>{action.legal ? t.yes : t.no}</td><td>{action.score?.toFixed(5) ?? '—'}</td><td>{debugLabel(action.move_role, locale) || '—'}</td><td>{debugLabel(action.effectiveness, locale) || '—'}</td><td><code>{action.feature_ids?.join(', ') || '—'}</code></td></tr>)}</tbody></table>}</section>}
-    {response.terminal && <section className="panel finish"><p className="eyebrow">{t.result}</p><h2>{response.winner === 'Human' ? t.youWon : response.winner === 'V1 LUT' ? t.aiWon : t.tie}</h2><p>{t.policyRevealed}: <strong>{response.policy_id}</strong></p>
+    {session.debug && <section className="panel debug"><h2>{t.developerView}</h2>
+      <div className="debugMeta">
+        <code>{t.policy} {revealPolicy ? response.policy_id : `— (${t.hiddenUntilEnd})`}</code>
+        <code>{t.schema} {response.feature_schema}</code>
+        <code>{t.seed} {response.seed.join(',')}</code>
+        <code>{t.margin} {lastDecision?.margin?.toFixed(4) ?? '—'}</code>
+        <code>{t.mask} {lastDecision?.legal_action_mask.map(Number).join('') || '—'}</code>
+        <code>{t.intScore} {lastDecision?.quantized_top1_score ?? '—'}</code>
+        <code>{t.resolvedTypes} {lastDecision?.resolved_defender_types.join('/') || '—'}</code>
+      </div>
+      {lastDecision && <table><thead><tr><th>{t.action}</th><th>{t.legal}</th><th>{t.score}</th><th>{t.intScore}</th><th>{t.role}</th><th>{t.moveClass}</th><th>{t.applies}</th><th>{t.effect}</th><th>{t.featureIds}</th></tr></thead><tbody>
+        {lastDecision.candidates.map(action => <tr className={action.index === lastDecision.chosen_action.index ? 'chosen' : ''} key={action.index}>
+          <td>{battleName(action.label, locale)}</td><td>{action.legal ? t.yes : t.no}</td>
+          <td>{action.score?.toFixed(5) ?? '—'}</td><td>{action.quantized_score ?? '—'}</td>
+          <td>{debugLabel(action.move_role, locale) || '—'}</td><td>{action.move_class || '—'}</td>
+          <td>{action.applicable == null ? '—' : action.applicable ? t.yes : t.no}</td>
+          <td>{debugLabel(action.effectiveness, locale) || '—'}</td>
+          <td><code>{action.activated_feature_ids?.join(', ') || '—'}</code></td>
+        </tr>)}
+      </tbody></table>}
+      {lastDecision && <div className="debugContributions"><h3>{t.topContributions}</h3><table><thead><tr><th>{t.featureIds}</th><th>{t.role}</th><th>{t.score}</th></tr></thead><tbody>
+        {largestContributions(lastDecision.chosen_action.contributions).map(term => <tr key={term.global_id}>
+          <td><code>#{term.global_id} {term.term}</code></td><td>{term.category}</td><td>{term.weight.toFixed(5)}</td>
+        </tr>)}
+      </tbody></table></div>}
+    </section>}
+    {response.terminal && <section className="panel finish"><p className="eyebrow">{t.result}</p><h2>{response.winner === 'Human' ? t.youWon : response.winner === 'AI' ? t.aiWon : t.tie}</h2>
+      <p>{t.policyRevealed}: <strong>{response.policy_id}</strong></p>
+      <p className="note">{t.trainingDecisions}: {provenance.checkpoint_decisions.toLocaleString()} · {t.schema}: {provenance.schema_version} · {t.sourceCheckpoint}: <code>{provenance.checkpoint_sha256?.slice(0, 12)}</code> · {t.quantScale}: {provenance.quantization_mode} ×{provenance.quantization_scale?.toFixed(3)}</p>
       <div className="survey"><label>{t.strengthQuestion}<select value={feedback.strength || ''} onChange={event => setFeedback({...feedback, strength: event.target.value})}><option value="">{t.choose}</option>{Object.keys(STRENGTH_LABELS).map(value => <option key={value} value={value}>{label(STRENGTH_LABELS[value], locale)}</option>)}</select></label>
         <label>{t.irrationalQuestion}<select value={feedback.irrational == null ? '' : String(feedback.irrational)} onChange={event => setFeedback({...feedback, irrational: event.target.value === 'true'})}><option value="">{t.choose}</option><option value="true">{t.yes}</option><option value="false">{t.no}</option></select></label>
         <label>{t.cheatingQuestion}<select value={feedback.cheating == null ? '' : String(feedback.cheating)} onChange={event => setFeedback({...feedback, cheating: event.target.value === 'true'})}><option value="">{t.choose}</option><option value="true">{t.yes}</option><option value="false">{t.no}</option></select></label>
         <label>{t.optionalComment}<textarea value={feedback.comment || ''} onChange={event => setFeedback({...feedback, comment: event.target.value})}/></label><button className="primary" onClick={submitFeedback}>{t.saveFeedback}</button></div>
-      <div className="exports"><button onClick={() => downloadJson(`playtest-${response.battle_id}.json`, log)}>{t.downloadLog}</button><button onClick={() => copyJson(log)}>{t.copyJson}</button><button onClick={() => downloadJson('gen3-lut-playtest-session.json', {exported_at: new Date().toISOString(), battles: loadArchive()})}>{t.downloadAll}</button></div>
+      <div className="exports"><button onClick={() => downloadJson(`playtest-${response.battle_id}.json`, log)}>{t.downloadLog}</button><button onClick={() => copyJson(log)}>{t.copyJson}</button><button onClick={() => exportArchive('json')}>{t.downloadAll}</button><button onClick={() => exportArchive('jsonl')}>{t.downloadAllJsonl}</button></div>
     </section>}
   </main>
 }

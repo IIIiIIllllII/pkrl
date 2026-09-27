@@ -37,7 +37,7 @@ def test_public_c_encoder_matches_all_python_fixtures(tmp_path):
     lib=tmp_path/"encoder.so"; src=ROOT/"integration/reference"
     subprocess.run(["cc","-std=c99","-shared","-fPIC","-O2",str(src/"encoder.c"),str(tmp_path/"generated/battle_ai_rl_lut.c"),"-o",str(lib)],check=True)
     dll=C.CDLL(str(lib)); fn=dll.RlEncodePublic
-    payload=json.loads((ROOT/"web-playtest/public/v1-1-parity-fixtures.json").read_text())
+    payload=json.loads((ROOT/"web-playtest/tests/fixtures/v1-1-parity-fixtures.json").read_text())
     catalog=json.loads(subprocess.check_output(["node",str(ROOT/"scripts/export_move_catalog.cjs")],text=True))
     ids={m["id"]:m["num"] for m in catalog}
     for fixture in payload["fixtures"]:

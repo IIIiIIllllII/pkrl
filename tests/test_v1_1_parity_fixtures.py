@@ -9,7 +9,7 @@ from gen3rl.features.schema import SCHEMA_VERSION
 ROOT=Path(__file__).resolve().parents[1]
 
 def test_committed_typescript_parity_fixtures_match_python_reference():
-    payload=json.loads((ROOT/"web-playtest/public/v1-1-parity-fixtures.json").read_text())
+    payload=json.loads((ROOT/"web-playtest/tests/fixtures/v1-1-parity-fixtures.json").read_text())
     assert payload["schema_version"] == SCHEMA_VERSION
     tables={k:np.asarray(v,dtype=np.float32) for k,v in payload["policy"]["tables"].items()}
     flat=np.concatenate([x.flatten() for x in tables.values()])

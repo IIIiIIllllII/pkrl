@@ -54,10 +54,20 @@ minibatches of 1024, CPU learning and one PyTorch thread. The old v1 100M
 checkpoint, old web policies, and ignored historical run remain available only
 as explicitly contaminated baselines; none can initialize v1.1 training.
 
+The clean `gen3-lut-v1.1` 100M run has completed. Its small provenance
+artifacts are tracked under
+[`artifacts/gen3-lut-v1.1/clean-run-20260926-160543-1c6977/`](artifacts/gen3-lut-v1.1/clean-run-20260926-160543-1c6977/README.md),
+and its 20M/50M/100M checkpoints are exported for human playtesting with:
+
+```bash
+.venv/bin/python scripts/export_web_policies.py
+```
+
 - [Schema and represented mechanics](docs/schema_v1_1.md)
 - [Initial repository audit](docs/reboot_audit.md)
 - [ROM integration and host parity](integration/pokeemerald/README.md)
-- [Historical human web playtest](web-playtest/README.md)
+- [Human web playtest against clean v1.1](web-playtest/README.md)
+- [Human playtest readiness report](docs/human_playtest_v1_1.md)
 - [Old-run contamination analysis](docs/contamination_audit.md)
 
 No ROM or baserom is included or downloaded. ROM/emulator validation requires
